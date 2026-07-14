@@ -1,0 +1,31 @@
+{
+
+  "exemplars": [
+    {
+      "dimension": "star_structure",
+      "before_example": "I worked on a project analysing customer churn data for a small startup during my second year.",
+      "after_example": "I built a churn prediction model for a startup during my second year, which flagged at-risk customers two weeks earlier than their existing process and helped the team cut churn by 12% over one quarter."
+    },
+    {
+      "dimension": "specificity",
+      "before_example": "I used AI tools to improve efficiency in our team project.",
+      "after_example": "I used the Claude API to automate our data cleaning step, cutting the time we spent preparing datasets from around 3 hours to 20 minutes per week."
+    },
+    {
+      "dimension": "voice_authenticity",
+      "before_example": "I am a highly motivated individual with a proven track record of delivering results in fast-paced, dynamic environments.",
+      "after_example": "I like taking on problems where I don't already know the answer. That's what drew me to this internship, since it's clearly not a role where you follow a fixed playbook."
+    },
+    {
+      "dimension": "trajectory_signal",
+      "before_example": "I completed a machine learning course and built a final project classifying images, which I'm proud of.",
+      "after_example": "The image classifier I built for my ML course made me want to understand how models fail, not just how they succeed, which is why I've since been reading up on adversarial robustness and looking for a role that lets me go deeper on that."
+    },
+    {
+      "dimension": "generic_phrasing",
+      "before_example": "I am passionate about technology and thrive in collaborative environments where I can leverage my skills to drive impactful results.",
+      "after_example": "I want to work somewhere I'm building things people actually use, not just writing code that sits in a repo. That's why your team's focus on shipping fast stood out to me."
+    }
+  ]
+  
+}

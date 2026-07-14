@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill //F //FI \"WINDOWTITLE eq *uvicorn*\")",
+      "Artifact",
+      "Bash(curl -s -o /tmp/resp1.json -w '%{http_code}\\\\n' -X POST http://localhost:8000/analyze -H 'Content-Type: application/json' -d '{\"job_description\":\"Some job description\",\"question\":\"Some question\",\"draft_answer\":\"\"}')",
+      "Read(//tmp/**)",
+      "Bash(python -c ' *)",
+      "Bash(curl -s -o 'C:\\\\Users\\\\Javie\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Javie-Documents-CodingProjects-Personal-gradlaunch-coach-gradlaunch-coach\\\\a6d644a9-ff26-4fd0-85ce-19b0ab391d90\\\\scratchpad/resp2.json' -w '%{http_code}\\\\n' -X POST http://localhost:8000/analyze -H 'Content-Type: application/json' --data-binary '@C:\\\\Users\\\\Javie\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Javie-Documents-CodingProjects-Personal-gradlaunch-coach-gradlaunch-coach\\\\a6d644a9-ff26-4fd0-85ce-19b0ab391d90\\\\scratchpad/payload2.json')"
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GradLaunch application coach</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>Application feedback</h1>
+
+  <form id="analyze-form">
+    <label for="job-description">Job description</label>
+    <textarea id="job-description" rows="6" placeholder="Paste the job description here" required maxlength="8000"></textarea>
+
+    <label for="question">Question</label>
+    <textarea id="question" rows="2" placeholder="e.g. Describe a project you're proud of" required maxlength="1000"></textarea>
+
+    <label for="draft-answer">Your draft answer</label>
+    <textarea id="draft-answer" rows="8" placeholder="Paste your draft answer here" required maxlength="6000"></textarea>
+
+    <button type="submit">Get feedback</button>
+  </form>
+
+  <!-- TODO: a loading indicator here, since a full pipeline run takes
+       roughly 10-20 seconds (four sequential API calls). Without one,
+       the page will look frozen while it's working. -->
+  <div id="loading" style="display: none;">Analysing...</div>
+
+  <!-- Report renders here once the response comes back. See script.js
+       for where the actual card-building logic goes. -->
+  <div id="report"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>

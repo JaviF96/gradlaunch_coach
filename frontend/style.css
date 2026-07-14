@@ -1,0 +1,112 @@
+/* Minimal starter styles. Expand as you go, this is just enough to make
+   the form usable, not a design pass. */
+
+body {
+  font-family: sans-serif;
+  max-width: 700px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+textarea {
+  width: 100%;
+  font-family: inherit;
+  padding: 8px;
+}
+
+button {
+  align-self: flex-start;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.summary {
+  background: #f5f5f5;
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.summary h2 {
+  margin-top: 0;
+}
+
+.no-flags {
+  color: #2e7d32;
+  font-weight: bold;
+}
+
+.error-message {
+  color: #b3261e;
+  background: #fdecea;
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.flag-card {
+  border-left: 4px solid #999;
+  border-radius: 4px;
+  background: #fafafa;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.flag-card[data-dimension="star_structure"] { border-color: #1e88e5; }
+.flag-card[data-dimension="specificity"] { border-color: #f4511e; }
+.flag-card[data-dimension="voice_authenticity"] { border-color: #8e24aa; }
+.flag-card[data-dimension="trajectory_signal"] { border-color: #00897b; }
+.flag-card[data-dimension="generic_phrasing"] { border-color: #c0ca33; }
+
+.flag-dimension {
+  font-size: 0.8em;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.flag-quote {
+  margin: 0 0 8px 0;
+  padding-left: 10px;
+  border-left: 2px solid #ccc;
+  font-style: italic;
+  color: #333;
+}
+
+.flag-reason {
+  margin: 0;
+}
+
+.flag-rewrite {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ddd;
+}
+
+.rewrite-label {
+  font-size: 0.8em;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #2e7d32;
+  margin-bottom: 6px;
+}
+
+.rewrite-text {
+  margin: 0 0 6px 0;
+  font-weight: 500;
+}
+
+.rewrite-reason {
+  margin: 0;
+  color: #555;
+  font-size: 0.9em;
+}
