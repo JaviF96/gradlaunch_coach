@@ -10,6 +10,7 @@ const BACKEND_URL = "http://localhost:8000";
 const form = document.getElementById("analyze-form");
 const loadingEl = document.getElementById("loading");
 const reportEl = document.getElementById("report");
+const submitButton = document.getElementById("submit-button");
 
 const DIMENSION_LABELS = {
   star_structure: "STAR structure",
@@ -28,6 +29,7 @@ form.addEventListener("submit", async (event) => {
 
   reportEl.innerHTML = "";
   loadingEl.style.display = "block";
+  submitButton.disabled = true;
 
   try {
     const response = await fetch(`${BACKEND_URL}/analyze`, {
@@ -52,6 +54,7 @@ form.addEventListener("submit", async (event) => {
     reportEl.innerHTML = `<p class="error-message">Something went wrong: ${escapeHtml(error.message)}</p>`;
   } finally {
     loadingEl.style.display = "none";
+    submitButton.disabled = false;
   }
 });
 

@@ -43,6 +43,17 @@ RATE_LIMIT_WINDOW_SECONDS = 60
 _request_log: dict[str, deque] = defaultdict(deque)
 
 
+def get_client_ip(request: Request) -> str:
+    # Behind Render's proxy, request.client.host is the proxy's own IP for
+    # every request, which would collapse the per-user rate limit into one
+    # shared limit. X-Forwarded-For carries the real client IP there; only
+    # trust the first entry since Render sets this header itself.
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host
+
+
 def check_rate_limit(client_ip: str) -> None:
     now = time.monotonic()
     log = _request_log[client_ip]
@@ -68,7 +79,7 @@ class AnalyzeRequest(BaseModel):
 
 @app.post("/analyze", response_model=FinalReport)
 def analyze(request: Request, body: AnalyzeRequest) -> FinalReport:
-    check_rate_limit(request.client.host)
+    check_rate_limit(get_client_ip(request))
     try:
         brief = context_agent(body.job_description, body.question)
         diagnostic = diagnostic_agent(brief, body.draft_answer)
