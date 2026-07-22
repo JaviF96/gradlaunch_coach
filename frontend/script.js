@@ -12,6 +12,9 @@ const loadingEl = document.getElementById("loading");
 const reportEl = document.getElementById("report");
 const submitButton = document.getElementById("submit-button");
 
+let reportState = null;   // the full FinalReport from the last successful fetch
+let currentSlide = 0;     // 0 = summary, 1..N = flags[0..N-1]
+
 const DIMENSION_LABELS = {
   star_structure: "STAR structure",
   specificity: "Specificity",
@@ -28,6 +31,7 @@ form.addEventListener("submit", async (event) => {
   const draftAnswer = document.getElementById("draft-answer").value;
 
   reportEl.innerHTML = "";
+  reportState = null;
   loadingEl.style.display = "block";
   submitButton.disabled = true;
 
@@ -47,7 +51,9 @@ form.addEventListener("submit", async (event) => {
     }
 
     const report = await response.json();
-    renderReport(report);
+    reportState = report;
+    currentSlide = 0;
+    renderSlide();
 
   } catch (error) {
     console.error("Analyze request failed:", error);
@@ -92,44 +98,97 @@ function dimensionLabel(dimension) {
   return DIMENSION_LABELS[dimension] || dimension.replace(/_/g, " ");
 }
 
-function renderReport(report) {
-  const { context, flags, rewrites } = report;
-
-  const summaryHtml = `
+function buildSummaryContentHtml(context) {
+  return `
     <div class="summary">
-      <h2>${escapeHtml(context.role_focus)}</h2>
+      <div class="summary-label">This question is looking for:</div>
+      <p class="summary-role-focus">${escapeHtml(context.role_focus)}</p>
       <p>${escapeHtml(context.question_intent)}</p>
       <ul>
         ${context.what_strong_answer_needs.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
       </ul>
     </div>
   `;
+}
+
+function buildNavHtml(totalFlags, current) {
+  const dots = [
+    `<button type="button" class="carousel-dot ${current === 0 ? "active" : ""}" data-action="jump" data-slide-index="0">Summary</button>`,
+  ];
+  for (let i = 1; i <= totalFlags; i++) {
+    dots.push(
+      `<button type="button" class="carousel-dot ${current === i ? "active" : ""}" data-action="jump" data-slide-index="${i}">Flag ${i}</button>`
+    );
+  }
+  return `<div class="carousel-nav">${dots.join("")}</div>`;
+}
+
+function buildSummarySlideHtml(context) {
+  return `
+    ${buildSummaryContentHtml(context)}
+    <div class="carousel-controls">
+      <span></span>
+      <button type="button" class="carousel-button" data-action="next">View flags</button>
+    </div>
+  `;
+}
+
+function buildFlagSlideHtml(flag, rewrites, slideIndex, totalFlags) {
+  const rewrite = rewrites.find((r) => r.original_text === flag.quoted_text);
+
+  const rewriteHtml = rewrite ? `
+    <div class="flag-rewrite">
+      <div class="rewrite-label">Suggested rewrite</div>
+      <p class="rewrite-text">${escapeHtml(rewrite.rewritten_text)}</p>
+      <p class="rewrite-reason">${escapeHtml(rewrite.reason)}</p>
+    </div>
+  ` : "";
+
+  const isLast = slideIndex === totalFlags;
+
+  return `
+    <div class="flag-card" data-dimension="${escapeHtml(flag.dimension)}">
+      <div class="flag-dimension">Flag ${slideIndex} of ${totalFlags} — ${escapeHtml(dimensionLabel(flag.dimension))}</div>
+      <blockquote class="flag-quote">${escapeHtml(flag.quoted_text)}</blockquote>
+      <p class="flag-reason">${escapeHtml(flag.reason)}</p>
+      ${rewriteHtml}
+    </div>
+    <div class="carousel-controls">
+      <button type="button" class="carousel-button" data-action="prev">Previous</button>
+      ${isLast ? "<span></span>" : `<button type="button" class="carousel-button" data-action="next">Next flag</button>`}
+    </div>
+  `;
+}
+
+function renderSlide() {
+  const { context, flags, rewrites } = reportState;
 
   if (flags.length === 0) {
-    reportEl.innerHTML = summaryHtml + `<p class="no-flags">No issues found - nice work.</p>`;
+    reportEl.innerHTML = buildSummaryContentHtml(context) + `<p class="no-flags">No issues found - nice work.</p>`;
     return;
   }
 
-  const flagCardsHtml = flags.map((flag) => {
-    const rewrite = rewrites.find((r) => r.original_text === flag.quoted_text);
+  const navHtml = buildNavHtml(flags.length, currentSlide);
+  const slideHtml = currentSlide === 0
+    ? buildSummarySlideHtml(context)
+    : buildFlagSlideHtml(flags[currentSlide - 1], rewrites, currentSlide, flags.length);
 
-    const rewriteHtml = rewrite ? `
-      <div class="flag-rewrite">
-        <div class="rewrite-label">Suggested rewrite</div>
-        <p class="rewrite-text">${escapeHtml(rewrite.rewritten_text)}</p>
-        <p class="rewrite-reason">${escapeHtml(rewrite.reason)}</p>
-      </div>
-    ` : "";
-
-    return `
-      <div class="flag-card" data-dimension="${escapeHtml(flag.dimension)}">
-        <div class="flag-dimension">${escapeHtml(dimensionLabel(flag.dimension))}</div>
-        <blockquote class="flag-quote">${escapeHtml(flag.quoted_text)}</blockquote>
-        <p class="flag-reason">${escapeHtml(flag.reason)}</p>
-        ${rewriteHtml}
-      </div>
-    `;
-  }).join("");
-
-  reportEl.innerHTML = summaryHtml + flagCardsHtml;
+  reportEl.innerHTML = navHtml + slideHtml;
 }
+
+reportEl.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-action]");
+  if (!target || !reportState) return;
+
+  const totalFlags = reportState.flags.length;
+
+  if (target.dataset.action === "next") {
+    currentSlide = Math.min(currentSlide + 1, totalFlags);
+  } else if (target.dataset.action === "prev") {
+    currentSlide = Math.max(currentSlide - 1, 0);
+  } else if (target.dataset.action === "jump") {
+    currentSlide = Number(target.dataset.slideIndex);
+  }
+
+  renderSlide();
+});

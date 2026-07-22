@@ -39,8 +39,18 @@ button:disabled {
   margin-bottom: 20px;
 }
 
-.summary h2 {
+.summary-label {
+  font-size: 0.8em;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #555;
   margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.summary-role-focus {
+  font-weight: 500;
 }
 
 .no-flags {
@@ -114,4 +124,32 @@ button:disabled {
   margin: 0;
   color: #555;
   font-size: 0.9em;
+}
+
+.carousel-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.carousel-dot {
+  font-size: 0.8em;
+  padding: 4px 10px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.carousel-dot.active {
+  background: #333;
+  color: #fff;
+  border-color: #333;
+}
+
+.carousel-controls {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
 }
