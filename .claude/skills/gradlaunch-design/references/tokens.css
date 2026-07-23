@@ -1,7 +1,9 @@
 /* ============================================================
-   GradLaunch — Application feedback
+   GradLaunch — design tokens
    Two-tone system: navy chrome frame, light working canvas.
-   Every hex in this file resolves to a variable in :root.
+   Copy this block into any GradLaunch surface rather than
+   retyping values. Every hex in the product should resolve
+   to a variable here.
    ============================================================ */
 
 :root {
@@ -73,10 +75,7 @@
    BASE
    ============================================================ */
 
-* { box-sizing: border-box; }
-
 body {
-  margin: 0;
   font-family: var(--gl-font-body);
   font-size: var(--gl-size-body);
   line-height: var(--gl-leading-prose);
@@ -85,12 +84,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-:focus-visible {
-  outline: 2px solid var(--gl-orange);
-  outline-offset: 2px;
-}
-
-/* Mono micro-label — field names, flag tags, counters, metadata. */
+/* Mono micro-label — a big part of the tool's texture.
+   Use for field names, flag tags, counters, metadata. */
 .gl-label {
   font-family: var(--gl-font-mono);
   font-size: var(--gl-size-label);
@@ -104,9 +99,6 @@ body {
    ============================================================ */
 
 .gl-chrome {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   background: var(--gl-chrome);
   color: var(--gl-chrome-ink);
   border-radius: var(--gl-radius-chrome);   /* never round the chrome */
@@ -118,19 +110,6 @@ body {
   gap: var(--gl-space-6);
 }
 
-.gl-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--gl-space-3);
-}
-
-.gl-mark {
-  width: 20px;
-  height: 20px;
-  fill: var(--gl-orange);
-  flex-shrink: 0;
-}
-
 .gl-wordmark {
   font-family: var(--gl-font-mono);
   font-size: var(--gl-size-label);
@@ -139,18 +118,19 @@ body {
   color: var(--gl-chrome-ink);
 }
 
-.gl-chrome-rule {
-  width: 1px;
-  height: 24px;
-  background: var(--gl-chrome-hairline);
-}
-
 .gl-product-name {
   font-family: var(--gl-font-display);
   font-size: var(--gl-size-small);
   font-weight: 600;
   color: var(--gl-chrome-ink);
-  margin: 0;
+}
+
+.gl-chrome-microcopy {
+  font-family: var(--gl-font-mono);
+  font-size: var(--gl-size-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gl-blue);              /* blue eyebrow lives in chrome only */
 }
 
 /* ============================================================
@@ -158,8 +138,7 @@ body {
    ============================================================ */
 
 .gl-canvas {
-  max-width: 1240px;
-  margin: 0 auto;
+  background: var(--gl-canvas);
   padding: var(--gl-space-8) var(--gl-space-6);
 }
 
@@ -176,34 +155,25 @@ body {
 }
 .gl-split > * + * { border-left: 1px solid var(--gl-hairline); }
 
+@media (max-width: 860px) {
+  .gl-split { grid-template-columns: 1fr; }
+  .gl-split > * + * {
+    border-left: 0;
+    border-top: 1px solid var(--gl-hairline);
+  }
+}
+
 .gl-panel {
   background: var(--gl-canvas);
   padding: var(--gl-space-6);
 }
+.gl-panel--sunken { background: var(--gl-canvas-panel); }
 
 /* --- Fields --- */
 
-.gl-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gl-space-2);
-  margin-bottom: var(--gl-space-4);
-}
+.gl-field { display: flex; flex-direction: column; gap: var(--gl-space-2); margin-bottom: var(--gl-space-4); }
 
-.gl-field-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--gl-space-3);
-}
-
-.gl-counter {
-  font-family: var(--gl-font-mono);
-  font-size: var(--gl-size-label);
-  letter-spacing: 0.08em;
-  color: var(--gl-ink-faint);
-}
-
+.gl-input,
 .gl-textarea {
   font-family: var(--gl-font-body);
   font-size: var(--gl-size-body);
@@ -213,24 +183,14 @@ body {
   border-radius: var(--gl-radius-field);
   padding: var(--gl-space-3);
   transition: border-color var(--gl-transition);
-  min-height: 150px;
-  line-height: var(--gl-leading-prose);
-  resize: vertical;
-  width: 100%;
 }
+.gl-input:focus,
 .gl-textarea:focus {
   outline: 2px solid var(--gl-orange);
   outline-offset: 1px;
   border-color: var(--gl-orange);
 }
-.gl-textarea--short { min-height: 64px; }
-.gl-textarea--tall  { min-height: 220px; }
-
-.gl-textarea::placeholder { color: var(--gl-ink-faint); }
-
-.form-actions {
-  margin-top: var(--gl-space-6);
-}
+.gl-textarea { min-height: 180px; line-height: var(--gl-leading-prose); resize: vertical; }
 
 /* --- Buttons ---
    The pill is the one piece of marketing-site voice allowed into the
@@ -249,10 +209,6 @@ body {
   transition: background var(--gl-transition);
 }
 .gl-btn-primary:hover { background: var(--gl-orange-deep); }
-.gl-btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 .gl-btn-secondary {
   font-family: var(--gl-font-body);
@@ -269,91 +225,19 @@ body {
 .gl-btn-secondary:hover { border-color: var(--gl-ink-muted); }
 
 /* ============================================================
-   REPORT PANEL — empty, loading, carousel
-   ============================================================ */
-
-#report:focus { outline: none; }
-
-.gl-empty {
-  max-width: 46ch;
-  color: var(--gl-ink-muted);
-  font-size: var(--gl-size-small);
-}
-.gl-empty .gl-label {
-  display: block;
-  margin-bottom: var(--gl-space-2);
-}
-.gl-empty p { margin: 0; }
-
-/* Skeleton matching the shape of real output. Never a bare spinner. */
-.loading-note {
-  display: block;
-  margin: 0 0 var(--gl-space-4);
-}
-
-.gl-skeleton { max-width: var(--gl-measure); }
-
-.gl-skeleton-line {
-  height: 12px;
-  background: var(--gl-canvas-sunken);
-  border-radius: var(--gl-radius-field);
-  margin-bottom: var(--gl-space-3);
-}
-.gl-skeleton-line:nth-child(3n) { width: 72%; }
-.gl-skeleton-line--tag { width: 32%; }
-
-/* --- Carousel navigation --- */
-
-.carousel-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gl-space-2);
-  margin-bottom: var(--gl-space-6);
-}
-
-.carousel-dot {
-  font-family: var(--gl-font-mono);
-  font-size: var(--gl-size-label);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gl-ink-muted);
-  background: var(--gl-canvas);
-  border: 1px solid var(--gl-hairline);
-  border-radius: var(--gl-radius-field);
-  padding: var(--gl-space-1) var(--gl-space-3);
-  cursor: pointer;
-  transition: border-color var(--gl-transition);
-}
-.carousel-dot:hover { border-color: var(--gl-ink-muted); }
-.carousel-dot.is-active {
-  background: var(--gl-ink);
-  border-color: var(--gl-ink);
-  color: var(--gl-chrome-ink);
-}
-
-.carousel-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: var(--gl-space-6);
-  max-width: var(--gl-measure);
-}
-
-/* ============================================================
    FEEDBACK ITEMS
    Severity is a left border + a mono tag. Never a filled tint
-   behind the prose.
+   behind the prose — that turns critique into an alarm panel
+   and hurts sustained reading.
    ============================================================ */
 
 .gl-flag {
   border-left: 4px solid var(--gl-hairline);
   padding: var(--gl-space-3) 0 var(--gl-space-3) var(--gl-space-4);
+  margin-bottom: var(--gl-space-6);
   max-width: var(--gl-measure);
 }
-.gl-flag p {
-  margin: var(--gl-space-2) 0 0;
-  color: var(--gl-ink);
-}
+.gl-flag p { margin: var(--gl-space-2) 0 0; color: var(--gl-ink); }
 
 .gl-flag--critical  { border-left-color: var(--gl-flag-critical); }
 .gl-flag--attention { border-left-color: var(--gl-flag-attention); }
@@ -371,112 +255,24 @@ body {
 .gl-flag--note      .gl-flag-tag { color: var(--gl-flag-note); }
 .gl-flag--strength  .gl-flag-tag { color: var(--gl-flag-strength); }
 
-.flag-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--gl-space-3);
-}
+/* ============================================================
+   STATES
+   ============================================================ */
 
-.flag-meta {
-  font-family: var(--gl-font-mono);
-  font-size: var(--gl-size-label);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gl-ink-faint);
-}
-
-.flag-quote {
-  margin: var(--gl-space-3) 0 0;
-  padding: var(--gl-space-1) 0 var(--gl-space-1) var(--gl-space-3);
-  border-left: 2px solid var(--gl-hairline);
-  color: var(--gl-ink-muted);
-}
-
-.flag-rewrite {
-  background: var(--gl-canvas-panel);
-  border-radius: var(--gl-radius-field);
-  padding: var(--gl-space-4);
-  margin-top: var(--gl-space-4);
-}
-.flag-rewrite .gl-label { display: block; }
-.flag-rewrite .rewrite-text { font-weight: 500; }
-.flag-rewrite .rewrite-reason {
+.gl-empty {
+  max-width: 46ch;
   color: var(--gl-ink-muted);
   font-size: var(--gl-size-small);
 }
 
-/* --- Summary slide --- */
-
-.summary-role { font-weight: 600; }
-
-.summary-needs-label {
-  display: block;
-  margin-top: var(--gl-space-4);
+/* Skeleton matching the shape of real output. Never a bare spinner. */
+.gl-skeleton-line {
+  height: 12px;
+  background: var(--gl-canvas-sunken);
+  border-radius: var(--gl-radius-field);
+  margin-bottom: var(--gl-space-3);
 }
-
-.summary-needs {
-  margin: var(--gl-space-2) 0 0;
-  padding-left: var(--gl-space-6);
-}
-.summary-needs li { margin-bottom: var(--gl-space-1); }
-
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
-
-/* App-shell at desktop width: the whole tool fits the viewport with no
-   document scroll. Long content scrolls inside its own panel instead.
-   Below the breakpoint the page scrolls normally — stacked mobile
-   content can't fit one screen. */
-@media (min-width: 861px) {
-  html, body { height: 100%; }
-  body {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .gl-canvas {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    width: 100%;
-    padding: var(--gl-space-6);
-  }
-  .gl-split {
-    flex: 1;
-    min-height: 0;
-  }
-  .gl-panel {
-    min-height: 0;
-    overflow-y: auto;
-  }
-
-  /* The form stretches to the panel's height; the two paste-heavy
-     textareas absorb the spare space instead of pushing the page. */
-  #analyze-form {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-  .gl-field--fill { flex: 1; min-height: 0; }
-  .gl-field--fill-lg { flex: 1.4; }
-  .gl-field--fill .gl-textarea {
-    flex: 1;
-    min-height: 96px;
-  }
-  .form-actions { margin-top: var(--gl-space-4); }
-}
-
-@media (max-width: 860px) {
-  .gl-split { grid-template-columns: 1fr; }
-  .gl-split > * + * {
-    border-left: 0;
-    border-top: 1px solid var(--gl-hairline);
-  }
-  .gl-canvas { padding: var(--gl-space-4); }
-  .gl-chrome { padding: 0 var(--gl-space-4); gap: var(--gl-space-4); }
-}
+.gl-skeleton-line:nth-child(3n) { width: 72%; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

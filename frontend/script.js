@@ -1,11 +1,28 @@
 // script.js
 //
 // Handles the form submit: sends the three inputs to the backend,
-// and renders whatever comes back.
+// and renders whatever comes back. index.html supplies the static
+// shell (empty state, loading skeleton); everything else is built here.
+
+// ============================================================
+// Config
+// ============================================================
 
 // TODO: replace with your deployed backend URL once you deploy.
 // Keep it as localhost while you're building locally.
 const BACKEND_URL = "http://localhost:8000";
+
+const DIMENSION_LABELS = {
+  star_structure: "STAR structure",
+  specificity: "Specificity",
+  voice_authenticity: "Voice authenticity",
+  trajectory_signal: "Trajectory signal",
+  generic_phrasing: "Generic phrasing",
+};
+
+// ============================================================
+// DOM references and state
+// ============================================================
 
 const form = document.getElementById("analyze-form");
 const loadingEl = document.getElementById("loading");
@@ -15,13 +32,23 @@ const submitButton = document.getElementById("submit-button");
 let reportState = null;   // the full FinalReport from the last successful fetch
 let currentSlide = 0;     // 0 = summary, 1..N = flags[0..N-1]
 
-const DIMENSION_LABELS = {
-  star_structure: "STAR structure",
-  specificity: "Specificity",
-  voice_authenticity: "Voice authenticity",
-  trajectory_signal: "Trajectory signal",
-  generic_phrasing: "Generic phrasing",
-};
+// ============================================================
+// Character counters
+// ============================================================
+
+for (const fieldId of ["job-description", "question", "draft-answer"]) {
+  const field = document.getElementById(fieldId);
+  const counter = document.getElementById(`${fieldId}-count`);
+  const update = () => {
+    counter.textContent = `${field.value.length} / ${field.maxLength}`;
+  };
+  field.addEventListener("input", update);
+  update();
+}
+
+// ============================================================
+// Submit → API call
+// ============================================================
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -32,7 +59,7 @@ form.addEventListener("submit", async (event) => {
 
   reportEl.innerHTML = "";
   reportState = null;
-  loadingEl.style.display = "block";
+  loadingEl.hidden = false;
   submitButton.disabled = true;
 
   try {
@@ -54,16 +81,24 @@ form.addEventListener("submit", async (event) => {
     reportState = report;
     currentSlide = 0;
     renderSlide();
+    reportEl.focus();
 
   } catch (error) {
     console.error("Analyze request failed:", error);
-    reportEl.innerHTML = `<p class="error-message">Something went wrong: ${escapeHtml(error.message)}</p>`;
+    const message = error instanceof TypeError
+      ? "The feedback service couldn't be reached. Check the backend is running, then try again."
+      : error.message;
+    reportEl.innerHTML = `
+      <div class="gl-flag gl-flag--critical">
+        <span class="gl-flag-tag">Error</span>
+        <p>${escapeHtml(message)}</p>
+      </div>
+    `;
   } finally {
-    loadingEl.style.display = "none";
+    loadingEl.hidden = true;
     submitButton.disabled = false;
   }
 });
-
 
 // Parses a failed response's body into a readable message. FastAPI sends
 // `detail` as a plain string for our own HTTPExceptions (429, 502), but as
@@ -98,29 +133,38 @@ function dimensionLabel(dimension) {
   return DIMENSION_LABELS[dimension] || dimension.replace(/_/g, " ");
 }
 
+// ============================================================
+// Renderers
+// ============================================================
+
 function buildSummaryContentHtml(context) {
   return `
-    <div class="summary">
-      <div class="summary-label">This question is looking for:</div>
-      <p class="summary-role-focus">${escapeHtml(context.role_focus)}</p>
+    <article class="gl-flag gl-flag--note">
+      <span class="gl-flag-tag">Question brief</span>
+      <p class="summary-role">${escapeHtml(context.role_focus)}</p>
       <p>${escapeHtml(context.question_intent)}</p>
-      <ul>
+      <span class="gl-label summary-needs-label">A strong answer needs</span>
+      <ul class="summary-needs">
         ${context.what_strong_answer_needs.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
       </ul>
-    </div>
+    </article>
   `;
 }
 
 function buildNavHtml(totalFlags, current) {
-  const dots = [
-    `<button type="button" class="carousel-dot ${current === 0 ? "active" : ""}" data-action="jump" data-slide-index="0">Summary</button>`,
-  ];
+  const dots = [navDotHtml(0, "Summary", current)];
   for (let i = 1; i <= totalFlags; i++) {
-    dots.push(
-      `<button type="button" class="carousel-dot ${current === i ? "active" : ""}" data-action="jump" data-slide-index="${i}">Flag ${i}</button>`
-    );
+    dots.push(navDotHtml(i, `Flag ${i}`, current));
   }
-  return `<div class="carousel-nav">${dots.join("")}</div>`;
+  return `<nav class="carousel-nav" aria-label="Report sections">${dots.join("")}</nav>`;
+}
+
+function navDotHtml(index, label, current) {
+  const active = index === current;
+  return `<button type="button"
+    class="carousel-dot${active ? " is-active" : ""}"
+    data-action="jump" data-slide-index="${index}"
+    ${active ? 'aria-current="true"' : ""}>${label}</button>`;
 }
 
 function buildSummarySlideHtml(context) {
@@ -128,7 +172,7 @@ function buildSummarySlideHtml(context) {
     ${buildSummaryContentHtml(context)}
     <div class="carousel-controls">
       <span></span>
-      <button type="button" class="carousel-button" data-action="next">View flags</button>
+      <button type="button" class="gl-btn-secondary" data-action="next">View flags</button>
     </div>
   `;
 }
@@ -138,7 +182,7 @@ function buildFlagSlideHtml(flag, rewrites, slideIndex, totalFlags) {
 
   const rewriteHtml = rewrite ? `
     <div class="flag-rewrite">
-      <div class="rewrite-label">Suggested rewrite</div>
+      <span class="gl-label">Suggested rewrite</span>
       <p class="rewrite-text">${escapeHtml(rewrite.rewritten_text)}</p>
       <p class="rewrite-reason">${escapeHtml(rewrite.reason)}</p>
     </div>
@@ -147,15 +191,18 @@ function buildFlagSlideHtml(flag, rewrites, slideIndex, totalFlags) {
   const isLast = slideIndex === totalFlags;
 
   return `
-    <div class="flag-card" data-dimension="${escapeHtml(flag.dimension)}">
-      <div class="flag-dimension">Flag ${slideIndex} of ${totalFlags} — ${escapeHtml(dimensionLabel(flag.dimension))}</div>
+    <article class="gl-flag gl-flag--attention">
+      <div class="flag-head">
+        <span class="gl-flag-tag">${escapeHtml(dimensionLabel(flag.dimension))}</span>
+        <span class="flag-meta">Flag ${slideIndex} of ${totalFlags}</span>
+      </div>
       <blockquote class="flag-quote">${escapeHtml(flag.quoted_text)}</blockquote>
       <p class="flag-reason">${escapeHtml(flag.reason)}</p>
       ${rewriteHtml}
-    </div>
+    </article>
     <div class="carousel-controls">
-      <button type="button" class="carousel-button" data-action="prev">Previous</button>
-      ${isLast ? "<span></span>" : `<button type="button" class="carousel-button" data-action="next">Next flag</button>`}
+      <button type="button" class="gl-btn-secondary" data-action="prev">Previous</button>
+      ${isLast ? "<span></span>" : `<button type="button" class="gl-btn-secondary" data-action="next">Next flag</button>`}
     </div>
   `;
 }
@@ -164,7 +211,12 @@ function renderSlide() {
   const { context, flags, rewrites } = reportState;
 
   if (flags.length === 0) {
-    reportEl.innerHTML = buildSummaryContentHtml(context) + `<p class="no-flags">No issues found - nice work.</p>`;
+    reportEl.innerHTML = buildSummaryContentHtml(context) + `
+      <div class="gl-flag gl-flag--strength">
+        <span class="gl-flag-tag">No flags</span>
+        <p>Nothing here needs fixing — the draft already covers what the question is looking for.</p>
+      </div>
+    `;
     return;
   }
 
@@ -176,19 +228,31 @@ function renderSlide() {
   reportEl.innerHTML = navHtml + slideHtml;
 }
 
+// ============================================================
+// Carousel navigation
+// ============================================================
+
 reportEl.addEventListener("click", (event) => {
   const target = event.target.closest("[data-action]");
   if (!target || !reportState) return;
 
+  const action = target.dataset.action;
   const totalFlags = reportState.flags.length;
 
-  if (target.dataset.action === "next") {
+  if (action === "next") {
     currentSlide = Math.min(currentSlide + 1, totalFlags);
-  } else if (target.dataset.action === "prev") {
+  } else if (action === "prev") {
     currentSlide = Math.max(currentSlide - 1, 0);
-  } else if (target.dataset.action === "jump") {
+  } else if (action === "jump") {
     currentSlide = Number(target.dataset.slideIndex);
   }
 
   renderSlide();
+
+  // innerHTML replacement drops keyboard focus to <body>; restore it to
+  // the equivalent control in the fresh DOM.
+  const focusTarget =
+    reportEl.querySelector(`.carousel-controls [data-action="${action}"]`) ||
+    reportEl.querySelector(".carousel-dot.is-active");
+  if (focusTarget) focusTarget.focus();
 });
