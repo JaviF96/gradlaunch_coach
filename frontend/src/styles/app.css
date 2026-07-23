@@ -1,76 +1,11 @@
 /* ============================================================
-   GradLaunch — Application feedback
-   Two-tone system: navy chrome frame, light working canvas.
-   Every hex in this file resolves to a variable in :root.
-   ============================================================ */
+   GradLaunch — Application feedback (v2, React)
+   Layout and components. All colour values resolve to tokens.css.
 
-:root {
-  /* --- Chrome zone (navy, sharp, brand) --- */
-  --gl-chrome:            #1E2A44;
-  --gl-chrome-panel:      #2A3854;
-  --gl-chrome-ink:        #FFFFFF;
-  --gl-chrome-ink-muted:  rgba(255, 255, 255, 0.68);
-  --gl-chrome-hairline:   rgba(255, 255, 255, 0.12);
-
-  /* --- Canvas zone (light, soft, work) --- */
-  --gl-canvas:            #FFFFFF;
-  --gl-canvas-panel:      #FAFAFA;
-  --gl-canvas-sunken:     #F5F5F4;
-  --gl-hairline:          #E5E5E5;
-  --gl-ink:               #1E2A44;  /* navy doing text duty */
-  --gl-ink-muted:         #5A6478;
-  --gl-ink-faint:         #8A93A5;
-
-  /* --- Accents --- */
-  --gl-orange:            #F59E0B;  /* brand in chrome, diagnostic in canvas */
-  --gl-orange-deep:       #D97706;  /* hover/active on orange only */
-  --gl-blue:              #3B82F6;  /* chrome microcopy, low-priority notes */
-
-  /* --- Feedback severity (canvas only) --- */
-  --gl-flag-critical:     #B3391A;  /* must fix */
-  --gl-flag-attention:    #F59E0B;  /* worth improving */
-  --gl-flag-note:         #3B82F6;  /* context / optional */
-  --gl-flag-strength:     #157A5B;  /* what's already working */
-
-  /* --- Type --- */
-  --gl-font-display: 'Space Grotesk', system-ui, sans-serif;
-  --gl-font-body:    'Inter', system-ui, sans-serif;
-  --gl-font-mono:    'JetBrains Mono', ui-monospace, monospace;
-
-  --gl-size-title:   28px;
-  --gl-size-heading: 20px;
-  --gl-size-body:    16px;
-  --gl-size-small:   14px;
-  --gl-size-label:   11px;
-
-  --gl-leading-prose: 1.6;
-  --gl-measure:       70ch;   /* hard cap on feedback prose width */
-
-  /* --- Shape --- */
-  --gl-radius-chrome: 0;
-  --gl-radius-field:  6px;
-  --gl-radius-panel:  8px;
-  --gl-radius-pill:   999px;  /* primary action only, once per screen */
-
-  /* --- Space (4px base) --- */
-  --gl-space-1: 4px;
-  --gl-space-2: 8px;
-  --gl-space-3: 12px;
-  --gl-space-4: 16px;
-  --gl-space-6: 24px;
-  --gl-space-8: 32px;
-  --gl-space-12: 48px;
-
-  /* --- Depth --- */
-  --gl-join-shadow:  0 1px 0 rgba(0, 0, 0, 0.08); /* the only structural shadow */
-  --gl-modal-shadow: 0 8px 32px rgba(30, 42, 68, 0.16);
-
-  /* --- Motion --- */
-  --gl-transition: 150ms ease;
-}
-
-/* ============================================================
-   BASE
+   Tonal layering: the page background is the sunken neutral, the
+   split working surface sits on it as a white card, and the input
+   panel interior takes the panel tint — depth from the existing
+   neutrals, no new colours.
    ============================================================ */
 
 * { box-sizing: border-box; }
@@ -81,7 +16,7 @@ body {
   font-size: var(--gl-size-body);
   line-height: var(--gl-leading-prose);
   color: var(--gl-ink);
-  background: var(--gl-canvas);
+  background: var(--gl-canvas-sunken);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -113,6 +48,7 @@ body {
   box-shadow: var(--gl-join-shadow);        /* the hard join to the canvas */
   padding: 0 var(--gl-space-6);
   height: 56px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--gl-space-6);
@@ -161,10 +97,11 @@ body {
   max-width: 1240px;
   margin: 0 auto;
   padding: var(--gl-space-8) var(--gl-space-6);
+  width: 100%;
 }
 
-/* Split working layout: input left, feedback right, hairline between.
-   Stacks input-first below 860px. */
+/* The white working card on the sunken page. Input left, feedback
+   right, hairline between; stacks input-first below 860px. */
 .gl-split {
   display: grid;
   grid-template-columns: minmax(320px, 2fr) 3fr;
@@ -180,8 +117,11 @@ body {
   background: var(--gl-canvas);
   padding: var(--gl-space-6);
 }
+.gl-panel--entry { background: var(--gl-canvas-panel); }
 
 /* --- Fields --- */
+
+#analyze-form { height: 100%; }
 
 .gl-field {
   display: flex;
@@ -224,13 +164,9 @@ body {
   border-color: var(--gl-orange);
 }
 .gl-textarea--short { min-height: 64px; }
-.gl-textarea--tall  { min-height: 220px; }
-
 .gl-textarea::placeholder { color: var(--gl-ink-faint); }
 
-.form-actions {
-  margin-top: var(--gl-space-6);
-}
+.form-actions { margin-top: var(--gl-space-6); }
 
 /* --- Buttons ---
    The pill is the one piece of marketing-site voice allowed into the
@@ -246,12 +182,14 @@ body {
   border-radius: var(--gl-radius-pill);
   padding: var(--gl-space-3) var(--gl-space-6);
   cursor: pointer;
-  transition: background var(--gl-transition);
+  transition: background var(--gl-transition), transform var(--gl-transition);
 }
 .gl-btn-primary:hover { background: var(--gl-orange-deep); }
+.gl-btn-primary:active { transform: scale(0.98); }
 .gl-btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
 .gl-btn-secondary {
@@ -268,10 +206,30 @@ body {
 }
 .gl-btn-secondary:hover { border-color: var(--gl-ink-muted); }
 
+/* Small quiet action inside a rewrite block. */
+.gl-btn-copy {
+  font-family: var(--gl-font-mono);
+  font-size: var(--gl-size-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gl-ink-muted);
+  background: transparent;
+  border: 1px solid var(--gl-hairline);
+  border-radius: var(--gl-radius-field);
+  padding: var(--gl-space-1) var(--gl-space-3);
+  cursor: pointer;
+  transition: border-color var(--gl-transition), color var(--gl-transition);
+}
+.gl-btn-copy:hover {
+  border-color: var(--gl-ink-muted);
+  color: var(--gl-ink);
+}
+
 /* ============================================================
    REPORT PANEL — empty, loading, carousel
    ============================================================ */
 
+#report { height: 100%; }
 #report:focus { outline: none; }
 
 .gl-empty {
@@ -307,6 +265,7 @@ body {
 .carousel-nav {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--gl-space-2);
   margin-bottom: var(--gl-space-6);
 }
@@ -322,7 +281,8 @@ body {
   border-radius: var(--gl-radius-field);
   padding: var(--gl-space-1) var(--gl-space-3);
   cursor: pointer;
-  transition: border-color var(--gl-transition);
+  transition: border-color var(--gl-transition), background var(--gl-transition),
+    color var(--gl-transition);
 }
 .carousel-dot:hover { border-color: var(--gl-ink-muted); }
 .carousel-dot.is-active {
@@ -331,12 +291,12 @@ body {
   color: var(--gl-chrome-ink);
 }
 
-.carousel-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: var(--gl-space-6);
-  max-width: var(--gl-measure);
+.carousel-hint {
+  font-family: var(--gl-font-mono);
+  font-size: var(--gl-size-label);
+  letter-spacing: 0.08em;
+  color: var(--gl-ink-faint);
+  margin-left: auto;
 }
 
 /* ============================================================
@@ -393,13 +353,19 @@ body {
   color: var(--gl-ink-muted);
 }
 
+/* One step deeper than the white feedback surface. */
 .flag-rewrite {
-  background: var(--gl-canvas-panel);
+  background: var(--gl-canvas-sunken);
   border-radius: var(--gl-radius-field);
   padding: var(--gl-space-4);
   margin-top: var(--gl-space-4);
 }
-.flag-rewrite .gl-label { display: block; }
+.rewrite-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--gl-space-3);
+}
 .flag-rewrite .rewrite-text { font-weight: 500; }
 .flag-rewrite .rewrite-reason {
   color: var(--gl-ink-muted);
@@ -422,25 +388,44 @@ body {
 .summary-needs li { margin-bottom: var(--gl-space-1); }
 
 /* ============================================================
+   MOTION — functional, ≤150ms, killed by reduced-motion below
+   ============================================================ */
+
+@keyframes gl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.slide-enter { animation: gl-rise 150ms ease both; }
+
+/* Children arrive with a slight stagger — content settling, not a show. */
+.stagger > * { animation: gl-rise 150ms ease both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 35ms; }
+.stagger > *:nth-child(3) { animation-delay: 70ms; }
+.stagger > *:nth-child(4) { animation-delay: 105ms; }
+.stagger > *:nth-child(5) { animation-delay: 140ms; }
+.stagger > *:nth-child(n+6) { animation-delay: 175ms; }
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 
 /* App-shell at desktop width: the whole tool fits the viewport with no
-   document scroll. Long content scrolls inside its own panel instead.
-   Below the breakpoint the page scrolls normally — stacked mobile
-   content can't fit one screen. */
+   document scroll. Long content scrolls inside its own panel instead. */
 @media (min-width: 861px) {
-  html, body { height: 100%; }
-  body {
+  html, body, #root { height: 100%; }
+  body { overflow: hidden; }
+  #root {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
   }
   .gl-canvas {
     flex: 1;
     min-height: 0;
     display: flex;
-    width: 100%;
     padding: var(--gl-space-6);
   }
   .gl-split {
@@ -452,12 +437,9 @@ body {
     overflow-y: auto;
   }
 
-  /* The form stretches to the panel's height; the two paste-heavy
-     textareas absorb the spare space instead of pushing the page. */
   #analyze-form {
     display: flex;
     flex-direction: column;
-    height: 100%;
   }
   .gl-field--fill { flex: 1; min-height: 0; }
   .gl-field--fill-lg { flex: 1.4; }
@@ -476,6 +458,7 @@ body {
   }
   .gl-canvas { padding: var(--gl-space-4); }
   .gl-chrome { padding: 0 var(--gl-space-4); gap: var(--gl-space-4); }
+  .carousel-hint { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

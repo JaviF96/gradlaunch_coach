@@ -1,93 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GradLaunch — Application feedback</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-  <header class="gl-chrome">
-    <div class="gl-brand">
-      <svg class="gl-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M2 21l21-9L2 3v7l15 2-15 2z"/>
-      </svg>
-      <span class="gl-wordmark">GradLaunch</span>
-    </div>
-    <span class="gl-chrome-rule" aria-hidden="true"></span>
-    <h1 class="gl-product-name">Application feedback</h1>
-  </header>
-
-  <main class="gl-canvas">
-    <div class="gl-split">
-
-      <section class="gl-panel gl-panel--entry" aria-label="Your application">
-        <form id="analyze-form">
-          <div class="gl-field gl-field--fill">
-            <div class="gl-field-head">
-              <label class="gl-label" for="job-description">Job description</label>
-              <span class="gl-counter" id="job-description-count" aria-hidden="true">0 / 8000</span>
-            </div>
-            <textarea class="gl-textarea" id="job-description" rows="6"
-              placeholder="Paste the job description here" required maxlength="8000"></textarea>
-          </div>
-
-          <div class="gl-field">
-            <div class="gl-field-head">
-              <label class="gl-label" for="question">Question</label>
-              <span class="gl-counter" id="question-count" aria-hidden="true">0 / 1000</span>
-            </div>
-            <textarea class="gl-textarea gl-textarea--short" id="question" rows="2"
-              placeholder="e.g. Describe a project you're proud of" required maxlength="1000"></textarea>
-          </div>
-
-          <div class="gl-field gl-field--fill gl-field--fill-lg">
-            <div class="gl-field-head">
-              <label class="gl-label" for="draft-answer">Your draft answer</label>
-              <span class="gl-counter" id="draft-answer-count" aria-hidden="true">0 / 6000</span>
-            </div>
-            <textarea class="gl-textarea gl-textarea--tall" id="draft-answer" rows="8"
-              placeholder="Paste your draft answer here" required maxlength="6000"></textarea>
-          </div>
-
-          <div class="form-actions">
-            <button type="submit" id="submit-button" class="gl-btn-primary">Get feedback</button>
-          </div>
-        </form>
-      </section>
-
-      <section class="gl-panel gl-panel--report" aria-label="Feedback">
-        <div id="loading" role="status" hidden>
-          <p class="gl-label loading-note">Analysing — usually 10 to 20 seconds</p>
-          <div class="gl-skeleton" aria-hidden="true">
-            <div class="gl-skeleton-line gl-skeleton-line--tag"></div>
-            <div class="gl-skeleton-line"></div>
-            <div class="gl-skeleton-line"></div>
-            <div class="gl-skeleton-line"></div>
-            <div class="gl-skeleton-line"></div>
-            <div class="gl-skeleton-line"></div>
-            <div class="gl-skeleton-line"></div>
-          </div>
-        </div>
-
-        <div id="report" aria-live="polite" tabindex="-1">
-          <div class="gl-empty">
-            <span class="gl-label">Feedback</span>
-            <p>Paste the job description, the question you're answering, and your
-            draft answer, then choose "Get feedback". You'll get a short brief on
-            what the question is looking for, plus flags on the specific lines
-            holding your answer back — most with a suggested rewrite.</p>
-          </div>
-        </div>
-      </section>
-
-    </div>
-  </main>
-
-  <script src="script.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GradLaunch — Application feedback</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

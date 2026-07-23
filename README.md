@@ -41,19 +41,28 @@ uvicorn main:app --reload
 
 Open http://localhost:8000/docs to test the /analyze endpoint directly.
 
-Then open `frontend/index.html` in a browser (or serve it with any static
-server) to use the actual form.
+Then run the frontend (Vite + React, requires Node):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5500 to use the actual form. The dev server is pinned
+to port 5500 so it matches the backend's default CORS allowlist.
 
 ## Deployment
 
 TODO once you're ready:
 - Backend: Render web service, root directory `backend/`, start command
   `uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Frontend: Render static site, root directory `frontend/`
+- Frontend: Render static site, root directory `frontend/`, build command
+  `npm install && npm run build`, publish directory `frontend/dist`
 - Set `ANTHROPIC_API_KEY` as an environment variable in the Render dashboard,
   not in code
-- Update `BACKEND_URL` in `frontend/script.js` to point at the deployed
-  backend URL
+- Set `VITE_BACKEND_URL` to the deployed backend URL when building the
+  frontend (it defaults to http://localhost:8000 for local dev)
 - Update `allow_origins` in `backend/main.py` to your deployed frontend URL
   instead of `"*"`
 

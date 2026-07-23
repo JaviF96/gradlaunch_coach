@@ -1,0 +1,70 @@
+/* ============================================================
+   GradLaunch — design tokens
+   Two-tone system: navy chrome frame, light working canvas.
+   Every hex in the app resolves to a variable here.
+   ============================================================ */
+
+:root {
+  /* --- Chrome zone (navy, sharp, brand) --- */
+  --gl-chrome:            #1E2A44;
+  --gl-chrome-panel:      #2A3854;
+  --gl-chrome-ink:        #FFFFFF;
+  --gl-chrome-ink-muted:  rgba(255, 255, 255, 0.68);
+  --gl-chrome-hairline:   rgba(255, 255, 255, 0.12);
+
+  /* --- Canvas zone (light, soft, work) --- */
+  --gl-canvas:            #FFFFFF;
+  --gl-canvas-panel:      #FAFAFA;
+  --gl-canvas-sunken:     #F5F5F4;
+  --gl-hairline:          #E5E5E5;
+  --gl-ink:               #1E2A44;  /* navy doing text duty */
+  --gl-ink-muted:         #5A6478;
+  --gl-ink-faint:         #8A93A5;
+
+  /* --- Accents --- */
+  --gl-orange:            #F59E0B;  /* brand in chrome, diagnostic in canvas */
+  --gl-orange-deep:       #D97706;  /* hover/active on orange only */
+  --gl-blue:              #3B82F6;  /* chrome microcopy, low-priority notes */
+
+  /* --- Feedback severity (canvas only) --- */
+  --gl-flag-critical:     #B3391A;  /* must fix */
+  --gl-flag-attention:    #F59E0B;  /* worth improving */
+  --gl-flag-note:         #3B82F6;  /* context / optional */
+  --gl-flag-strength:     #157A5B;  /* what's already working */
+
+  /* --- Type --- */
+  --gl-font-display: 'Space Grotesk', system-ui, sans-serif;
+  --gl-font-body:    'Inter', system-ui, sans-serif;
+  --gl-font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  --gl-size-title:   28px;
+  --gl-size-heading: 20px;
+  --gl-size-body:    16px;
+  --gl-size-small:   14px;
+  --gl-size-label:   11px;
+
+  --gl-leading-prose: 1.6;
+  --gl-measure:       70ch;   /* hard cap on feedback prose width */
+
+  /* --- Shape --- */
+  --gl-radius-chrome: 0;
+  --gl-radius-field:  6px;
+  --gl-radius-panel:  8px;
+  --gl-radius-pill:   999px;  /* primary action only, once per screen */
+
+  /* --- Space (4px base) --- */
+  --gl-space-1: 4px;
+  --gl-space-2: 8px;
+  --gl-space-3: 12px;
+  --gl-space-4: 16px;
+  --gl-space-6: 24px;
+  --gl-space-8: 32px;
+  --gl-space-12: 48px;
+
+  /* --- Depth --- */
+  --gl-join-shadow:  0 1px 0 rgba(0, 0, 0, 0.08); /* the only structural shadow */
+  --gl-modal-shadow: 0 8px 32px rgba(30, 42, 68, 0.16);
+
+  /* --- Motion --- */
+  --gl-transition: 150ms ease;
+}
