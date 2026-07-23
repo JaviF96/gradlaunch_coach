@@ -17,6 +17,7 @@
   --gl-canvas-panel:      #FAFAFA;
   --gl-canvas-sunken:     #F5F5F4;
   --gl-hairline:          #E5E5E5;
+  --gl-desk:              #EEF1F6;  /* page background behind the working card — a cool navy-tinted grey */
   --gl-ink:               #1E2A44;  /* navy doing text duty */
   --gl-ink-muted:         #5A6478;
   --gl-ink-faint:         #8A93A5;

@@ -16,7 +16,7 @@ body {
   font-size: var(--gl-size-body);
   line-height: var(--gl-leading-prose);
   color: var(--gl-ink);
-  background: var(--gl-canvas-sunken);
+  background: var(--gl-desk);
   -webkit-font-smoothing: antialiased;
 }
 
