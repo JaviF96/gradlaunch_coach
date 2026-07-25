@@ -6,10 +6,6 @@ Four functions, one per stage of the pipeline. Each one:
   2. calls Claude
   3. parses the JSON response into the matching schema from schemas.py
 
-The `call_claude_json` helper below is working infrastructure code, you
-shouldn't need to change it much. The system prompts inside each agent
-function are left as TODOs on purpose. That's the actual rubric IP, the
-part worth building carefully yourself rather than having handed to you.
 """
 
 import os
@@ -30,8 +26,6 @@ client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 EXEMPLARS_PATH = Path(__file__).parent / "exemplars.json"
 
-# TODO: check docs.claude.com for the current recommended model name.
-# Pick something capable, this pipeline is doing real reasoning at each stage.
 MODEL_NAME = "claude-haiku-4-5"
 
 # Per-stage output caps. context_agent's output is a handful of short
@@ -52,7 +46,7 @@ class PipelineError(Exception):
 def call_claude_json(system_prompt: str, user_message: str, *, max_tokens: int, _retry: bool = True) -> dict:
     """
     Shared helper: sends one message to Claude, expects ONLY valid JSON back,
-    and parses it. All four Claude-calling agents route through this.
+    and parses it. All three Claude-calling agents route through this.
 
     If Claude wraps the JSON in markdown fences, that's stripped. If the JSON
     fails to parse, this retries once before giving up.
@@ -92,13 +86,6 @@ def context_agent(job_description: str, question: str) -> ContextBrief:
     Figures out what this role actually values and what a strong answer
     to THIS question needs to contain.
 
-    TODO: write the system prompt. Things to think about:
-    - What should it look for in a job description? (seniority, technical
-      vs soft skill emphasis, specific tools/domains mentioned)
-    - What question types should it recognise? (behavioural, technical,
-      motivation, "tell me about a time...")
-    - Tell it explicitly to return ONLY JSON matching the ContextBrief shape:
-      role_focus, question_intent, what_strong_answer_needs (a list)
     """
     system_prompt = """
       You are the first stage in an application-coaching pipeline. Your only job
@@ -156,7 +143,7 @@ def diagnostic_agent(brief: ContextBrief, draft_answer: str) -> DiagnosticReport
     generic.
 
     TODO: this is where the actual rubric lives. Write the system prompt
-    to check for, at minimum, the dimensions discussed:
+    to check for, at minimum, the dimensions:
     - STAR structure / outcome with a number attached
     - specificity (real tools/figures vs vague phrases)
     - voice authenticity (too polished/corporate for the person's stage)
@@ -222,6 +209,8 @@ def diagnostic_agent(brief: ContextBrief, draft_answer: str) -> DiagnosticReport
 
     result = call_claude_json(system_prompt, user_message, max_tokens=DIAGNOSTIC_MAX_TOKENS)
     try:
+        for i, flag in enumerate(result.get("flags", [])):
+          flag["id"] = f"flag-{i}"
         return DiagnosticReport(**result)
     except ValidationError as e:
         raise PipelineError(f"Claude's diagnostic response didn't match the expected shape: {e}") from e
@@ -307,6 +296,8 @@ def rewrite_agent(flags: list[Flag], exemplars: list[ExemplarMatch]) -> list[Rew
     If a flag has no matched exemplar, still write a rewrite, just rely on the
     flag's own dimension and reason to guide the fix instead.
 
+    Each rewrite must also carry the flag_id of the flag it addresses. 
+
     Respond with ONLY valid JSON, no markdown fences, no preamble, no
     commentary before or after. Match this exact shape, a JSON array with one
     object per flag, in the same order the flags were given:
@@ -315,7 +306,8 @@ def rewrite_agent(flags: list[Flag], exemplars: list[ExemplarMatch]) -> list[Rew
       {
         "original_text": "the exact quoted_text from the flag, unchanged",
         "rewritten_text": "the improved version of that specific text",
-        "reason": "one sentence on what changed and why, in coaching language"
+        "reason": "one sentence on what changed and why, in coaching language",
+        "flag_id": "the id of the flag this rewrite addresses"
       }
     ]
     """

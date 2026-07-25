@@ -9,8 +9,6 @@ FastAPI/Pydantic will validate whatever JSON comes back from Claude against
 these models. If a model's required field is missing, you'll get a clear
 error here instead of a silent bug three steps later in the pipeline.
 
-TODO for you: adjust field names/types as you actually build the rubric.
-These are starting points based on the plan, not final.
 """
 
 from pydantic import BaseModel
@@ -21,15 +19,15 @@ from typing import List
 
 class ContextBrief(BaseModel):
     role_focus: str
-    # TODO: what does this role/question actually value? e.g. "technical depth
+    # what does this role/question actually value? e.g. "technical depth
     # under pressure" vs "stakeholder communication"
 
     question_intent: str
-    # TODO: what is this specific question testing? motivation, teamwork,
+    # what is this specific question testing? motivation, teamwork,
     # technical skill, resilience, etc.
 
     what_strong_answer_needs: List[str]
-    # TODO: a short list of things a strong answer to THIS question, for
+    # a short list of things a strong answer to THIS question, for
     # THIS role, would need to contain. This is what makes the rubric
     # specific instead of generic.
 
@@ -38,15 +36,18 @@ class ContextBrief(BaseModel):
 
 class Flag(BaseModel):
     dimension: str
-    # TODO: which rubric dimension this violates, e.g. "specificity",
+    # which rubric dimension this violates, e.g. "specificity",
     # "STAR structure", "voice authenticity", "trajectory signal"
 
     quoted_text: str
     # the exact sentence/phrase from the student's draft that triggered this flag
 
     reason: str
-    # TODO: plain-language explanation of why this is a problem, written the
+    # plain-language explanation of why this is a problem, written the
     # way Lorna would explain it to a student, not a generic AI explanation
+
+    id: str 
+    # unique identifier for this flag, so the frontend can track it across
 
 
 class DiagnosticReport(BaseModel):
@@ -61,7 +62,7 @@ class ExemplarMatch(BaseModel):
 
     before_example: str
     after_example: str
-    # TODO: pulled from your curated exemplars.json, not invented by the model
+    # pulled from your curated exemplars.json, not invented by the model
 
 
 # ---- Agent 4: Rewrite Agent ----
@@ -72,7 +73,10 @@ class RewriteSuggestion(BaseModel):
 
     rewritten_text: str
     reason: str
-    # TODO: short note on why this rewrite fixes the flagged issue
+    # short note on why this rewrite fixes the flagged issue
+
+    flag_id: str
+    # should match a Flag's Id so the frontend can pair them up
 
 
 # ---- Final combined report returned to the frontend ----

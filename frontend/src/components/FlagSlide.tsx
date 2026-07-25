@@ -15,9 +15,8 @@ export function FlagSlide({
   slideIndex,
   totalFlags,
 }: FlagSlideProps) {
-  // A rewrite belongs to this flag when its original_text is exactly the
-  // flag's quoted_text — the backend's implicit join key.
-  const rewrite = rewrites.find((r) => r.original_text === flag.quoted_text);
+  
+  const rewrite = rewrites.find((r) => r.flag_id === flag.id);
 
   return (
     <article className="gl-flag gl-flag--attention stagger">

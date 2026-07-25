@@ -15,12 +15,14 @@ export interface Flag {
   dimension: string;
   quoted_text: string;
   reason: string;
+  id: string;
 }
 
 export interface Rewrite {
   original_text: string;
   rewritten_text: string;
   reason: string;
+  flag_id: string;
 }
 
 export interface FinalReport {

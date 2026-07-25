@@ -15,6 +15,8 @@ export function InputPanel({ busy, onSubmit }: InputPanelProps) {
   const [question, setQuestion] = useState("");
   const [draftAnswer, setDraftAnswer] = useState("");
 
+  const isReady = jobDescription.trim() !== "" && question.trim() !== "" && draftAnswer.trim() !== "";
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onSubmit(jobDescription, question, draftAnswer);
@@ -54,7 +56,7 @@ export function InputPanel({ busy, onSubmit }: InputPanelProps) {
           fill="large"
         />
         <div className="form-actions">
-          <button type="submit" className="gl-btn-primary" disabled={busy}>
+          <button type="submit" className="gl-btn-primary" disabled={busy || !isReady}>
             Get feedback
           </button>
         </div>
