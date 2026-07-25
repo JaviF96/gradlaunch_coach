@@ -37,12 +37,35 @@ export interface AnalyzeRequest {
   draft_answer: string;
 }
 
+// Sits deliberately above the backend's own PIPELINE_BUDGET_SECONDS (150s in
+// agents.py) so the backend almost always wins the race and the user gets its
+// specific error instead of a bare client-side abort. This is the last-resort
+// stop for a connection that dies without the backend ever replying.
+const REQUEST_TIMEOUT_MS = 165_000;
+
 export async function analyze(body: AnalyzeRequest): Promise<FinalReport> {
-  const response = await fetch(`${BACKEND_URL}/analyze`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BACKEND_URL}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    // An aborted fetch throws a DOMException named "TimeoutError", whose own
+    // message ("signal timed out") means nothing to a student. Everything
+    // else - a genuine network failure throws TypeError - passes through so
+    // App.tsx can still tell the two apart.
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new Error(
+        "The request timed out after " +
+          Math.round(REQUEST_TIMEOUT_MS / 1000) +
+          " seconds. The feedback service may be overloaded — try again in a moment.",
+      );
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     throw new Error(await extractErrorMessage(response));

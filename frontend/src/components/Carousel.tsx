@@ -15,6 +15,9 @@ export function Carousel({ report }: { report: FinalReport }) {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
       if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return;
+      // Let browser and OS chords through — otherwise Ctrl/Cmd+S jumps to the
+      // summary slide while the user is trying to save the page.
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
 
       if (event.key === "ArrowRight") {
         setSlide((s) => Math.min(s + 1, totalFlags));

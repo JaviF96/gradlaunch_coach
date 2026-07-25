@@ -11,8 +11,9 @@ Four functions, one per stage of the pipeline. Each one:
 import os
 import json
 import logging
+import time
 from pathlib import Path
-from anthropic import Anthropic, APIError
+from anthropic import Anthropic, APIError, APITimeoutError
 from dotenv import load_dotenv
 from pydantic import ValidationError
 
@@ -21,8 +22,6 @@ from schemas import ContextBrief, DiagnosticReport, Flag, ExemplarMatch, Rewrite
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-
-client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 EXEMPLARS_PATH = Path(__file__).parent / "exemplars.json"
 
@@ -35,6 +34,27 @@ CONTEXT_MAX_TOKENS = 1000
 DIAGNOSTIC_MAX_TOKENS = 2000
 REWRITE_MAX_TOKENS = 2000
 
+# Timeouts. The SDK defaults to a 600s read timeout and 2 internal retries,
+# so one hung call could tie up a request for 30 minutes behind a spinner
+# that promises 10-20 seconds. These bound it instead:
+#
+#   CLAUDE_TIMEOUT_SECONDS  ceiling on any single HTTP attempt
+#   CLAUDE_MAX_RETRIES      SDK-level retries per call (down from 2)
+#   PIPELINE_BUDGET_SECONDS wall-clock budget for all 3 calls in a request
+#
+# The budget is the real guarantee: each call gets whatever is left of it,
+# capped at the per-attempt ceiling, so the pipeline cannot outrun it no
+# matter how the individual stages behave. Keep the frontend's abort in
+# api.ts comfortably above PIPELINE_BUDGET_SECONDS so the backend's own
+# clean error wins the race and the user sees a real message.
+CLAUDE_TIMEOUT_SECONDS = 60.0
+CLAUDE_MAX_RETRIES = 1
+PIPELINE_BUDGET_SECONDS = 150.0
+
+# Below this there isn't enough budget left for a call to plausibly finish,
+# so fail immediately rather than burn a request that is going to time out.
+MIN_CALL_SECONDS = 5.0
+
 
 class PipelineError(Exception):
     """Raised when a pipeline stage can't produce a usable result - a Claude
@@ -43,23 +63,93 @@ class PipelineError(Exception):
     signal that a stage failed, and turns it into a clean HTTP error."""
 
 
-def call_claude_json(system_prompt: str, user_message: str, *, max_tokens: int, _retry: bool = True) -> dict:
+_client: Anthropic | None = None
+
+
+def get_client() -> Anthropic:
+    """
+    Builds the Anthropic client on first use rather than at import time.
+
+    Constructing it at import would raise if ANTHROPIC_API_KEY is missing,
+    which kills the whole app at startup - /health included - over what is
+    really a per-request failure. Deferring it means the app always boots and
+    a missing key surfaces as a clean 502 naming the actual problem.
+    """
+    global _client
+    if _client is None:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise PipelineError(
+                "ANTHROPIC_API_KEY is not set. Copy backend/.env.example to backend/.env and add your key."
+            )
+        _client = Anthropic(
+            api_key=api_key,
+            timeout=CLAUDE_TIMEOUT_SECONDS,
+            max_retries=CLAUDE_MAX_RETRIES,
+        )
+    return _client
+
+
+def new_deadline() -> float:
+    """Wall-clock instant by which a whole /analyze request must be done."""
+    return time.monotonic() + PIPELINE_BUDGET_SECONDS
+
+
+def _timeout_for_call(deadline: float | None) -> float:
+    """
+    How long the next Claude call may take: whatever is left of the request
+    budget, capped at the per-attempt ceiling. Raises if the budget is spent,
+    so a slow first stage can't drag the later ones past the deadline.
+    """
+    if deadline is None:
+        return CLAUDE_TIMEOUT_SECONDS
+    remaining = deadline - time.monotonic()
+    if remaining < MIN_CALL_SECONDS:
+        raise PipelineError(
+            "Analysis took too long and was stopped. Try again, or shorten your draft answer."
+        )
+    return min(remaining, CLAUDE_TIMEOUT_SECONDS)
+
+
+def call_claude_json(
+    system_prompt: str,
+    user_message: str,
+    *,
+    max_tokens: int,
+    expect: type,
+    deadline: float | None = None,
+    _retry: bool = True,
+) -> dict | list:
     """
     Shared helper: sends one message to Claude, expects ONLY valid JSON back,
     and parses it. All three Claude-calling agents route through this.
+
+    `expect` is the container type the caller needs (dict or list). Anything
+    else - most commonly a {"rewrites": [...]} wrapper where a bare array was
+    asked for - is a PipelineError rather than an AttributeError/TypeError
+    thrown three lines later in the caller.
 
     If Claude wraps the JSON in markdown fences, that's stripped. If the JSON
     fails to parse, this retries once before giving up.
     """
     try:
-        response = client.messages.create(
+        response = get_client().messages.create(
             model=MODEL_NAME,
             max_tokens=max_tokens,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
+            timeout=_timeout_for_call(deadline),
         )
+    except APITimeoutError as e:
+        # Checked before the general APIError branch - it's a subclass, and a
+        # timeout is worth its own message since the fix is different.
+        logger.error("Claude call timed out after %.0fs", CLAUDE_TIMEOUT_SECONDS)
+        raise PipelineError(
+            "The feedback service took too long to respond. Try again, or shorten your draft answer."
+        ) from e
     except APIError as e:
-        raise PipelineError(f"Claude API request failed: {e}") from e
+        logger.error("Claude API request failed: %s", e)
+        raise PipelineError("The feedback service is unavailable right now. Try again in a moment.") from e
 
     if not response.content:
         raise PipelineError(f"Claude returned no content (stop_reason={response.stop_reason!r})")
@@ -75,20 +165,57 @@ def call_claude_json(system_prompt: str, user_message: str, *, max_tokens: int, 
     raw_text = "".join(text_blocks).strip()
 
     if raw_text.startswith("```"):
-        raw_text = raw_text.split("\n", 1)[1]
+        # partition, not split(...)[1] - a bare "```json" with no newline after
+        # it would make the latter raise IndexError. Here it just yields an
+        # empty string, which falls through to the JSON error below.
+        raw_text = raw_text.partition("\n")[2]
         raw_text = raw_text.rsplit("```", 1)[0].strip()
 
     try:
-        return json.loads(raw_text)
-    except json.JSONDecodeError:
+        parsed = json.loads(raw_text)
+    except json.JSONDecodeError as e:
+        # A truncated response is the most likely cause of unparseable JSON,
+        # and retrying reproduces it at exactly the same length for double the
+        # cost. Only retry when the model actually finished its turn.
+        if response.stop_reason == "max_tokens":
+            logger.error("Response hit max_tokens (%d) and was cut off mid-JSON: %s", max_tokens, raw_text)
+            raise PipelineError(
+                "The response was cut off before it finished. Try a shorter draft answer."
+            ) from e
         if _retry:
-            return call_claude_json(system_prompt, user_message, max_tokens=max_tokens, _retry=False)
-        raise PipelineError(f"Agent did not return valid JSON after retry. Raw response: {raw_text}")
+            logger.warning("Response was not valid JSON, retrying once: %s", raw_text)
+            return call_claude_json(
+                system_prompt,
+                user_message,
+                max_tokens=max_tokens,
+                expect=expect,
+                deadline=deadline,
+                _retry=False,
+            )
+        # The raw text goes to the logs, not into the exception - main.py puts
+        # the message straight into an HTTP detail the browser renders, and a
+        # wall of unparsed model output is neither useful nor safe there.
+        logger.error("Response was not valid JSON after retry: %s", raw_text)
+        raise PipelineError("The feedback service returned a malformed response. Try again.") from e
+
+    # No retry here: the JSON parsed fine, the model just chose a different
+    # shape. A second identical call is unlikely to change that and costs real
+    # money, so fail loudly instead.
+    if not isinstance(parsed, expect):
+        logger.error(
+            "Response was %s, expected %s: %s", type(parsed).__name__, expect.__name__, raw_text
+        )
+        raise PipelineError(
+            f"The feedback service returned the wrong shape of response "
+            f"({type(parsed).__name__} instead of {expect.__name__}). Try again."
+        )
+
+    return parsed
 
 
 # ---- Agent 1: Context Agent ----
 
-def context_agent(job_description: str, question: str) -> ContextBrief:
+def context_agent(job_description: str, question: str, *, deadline: float | None = None) -> ContextBrief:
     """
     Reads the job description and the interview/application question.
     Figures out what this role actually values and what a strong answer
@@ -135,16 +262,21 @@ def context_agent(job_description: str, question: str) -> ContextBrief:
     {question}
     """
 
-    result = call_claude_json(system_prompt, user_message, max_tokens=CONTEXT_MAX_TOKENS)
+    result = call_claude_json(
+        system_prompt, user_message, max_tokens=CONTEXT_MAX_TOKENS, expect=dict, deadline=deadline
+    )
     try:
         return ContextBrief(**result)
-    except ValidationError as e:
-        raise PipelineError(f"Claude's context response didn't match the expected shape: {e}") from e
+    except (ValidationError, TypeError) as e:
+        logger.error("Context response didn't match ContextBrief: %s", e)
+        raise PipelineError("The feedback service returned an unexpected context response. Try again.") from e
 
 
 # ---- Agent 2: Diagnostic Agent ----
 
-def diagnostic_agent(brief: ContextBrief, draft_answer: str) -> DiagnosticReport:
+def diagnostic_agent(
+    brief: ContextBrief, draft_answer: str, *, deadline: float | None = None
+) -> DiagnosticReport:
     """
     Scores the draft answer against Lorna's rubric dimensions, using the
     brief from the context agent to make the scoring specific rather than
@@ -215,24 +347,51 @@ def diagnostic_agent(brief: ContextBrief, draft_answer: str) -> DiagnosticReport
     {draft_answer}
     """
 
-    result = call_claude_json(system_prompt, user_message, max_tokens=DIAGNOSTIC_MAX_TOKENS)
+    result = call_claude_json(
+        system_prompt, user_message, max_tokens=DIAGNOSTIC_MAX_TOKENS, expect=dict, deadline=deadline
+    )
+
+    # The id is assigned here rather than asked for in the prompt, so the
+    # frontend can pair rewrites to flags without trusting the model to invent
+    # unique ids. That means writing into each entry, which requires each entry
+    # to actually be a dict.
+    flags = result.get("flags", [])
+    if not isinstance(flags, list):
+        raise PipelineError(f"Diagnostic agent returned 'flags' as {type(flags).__name__}, expected a list.")
+    for i, flag in enumerate(flags):
+        if not isinstance(flag, dict):
+            raise PipelineError(f"Diagnostic agent returned a {type(flag).__name__} in 'flags', expected an object.")
+        flag["id"] = f"flag-{i}"
+
     try:
-        for i, flag in enumerate(result.get("flags", [])):
-          flag["id"] = f"flag-{i}"
         return DiagnosticReport(**result)
-    except ValidationError as e:
-        raise PipelineError(f"Claude's diagnostic response didn't match the expected shape: {e}") from e
+    except (ValidationError, TypeError) as e:
+        logger.error("Diagnostic response didn't match DiagnosticReport: %s", e)
+        raise PipelineError("The feedback service returned unexpected flags. Try again.") from e
 
 
 # ---- Agent 3: Exemplar Agent ----
 
-def _load_exemplars() -> dict[str, dict]:
+def _load_exemplars() -> dict[str, ExemplarMatch]:
+    """
+    Reads exemplars.json and validates every entry up front, so a malformed
+    file fails here with a clear message rather than as a KeyError deep in
+    exemplar_agent.
+
+    encoding is pinned to utf-8: this file is curated prose, and without it
+    Python picks the platform default (cp1252 on Windows), so the first curly
+    quote anyone pastes in would load on Linux and crash locally.
+    """
     try:
-        with open(EXEMPLARS_PATH) as f:
+        with open(EXEMPLARS_PATH, encoding="utf-8") as f:
             data = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
+    except (FileNotFoundError, UnicodeDecodeError, json.JSONDecodeError) as e:
         raise PipelineError(f"Could not load exemplars.json: {e}") from e
-    return {e["dimension"]: e for e in data["exemplars"]}
+
+    try:
+        return {entry["dimension"]: ExemplarMatch(**entry) for entry in data["exemplars"]}
+    except (KeyError, TypeError, ValidationError) as e:
+        raise PipelineError(f"exemplars.json is malformed: {e}") from e
 
 
 def exemplar_agent(flags: list[Flag]) -> list[ExemplarMatch]:
@@ -263,18 +422,16 @@ def exemplar_agent(flags: list[Flag]) -> list[ExemplarMatch]:
             )
             continue
 
-        matches.append(ExemplarMatch(
-            dimension=exemplar["dimension"],
-            before_example=exemplar["before_example"],
-            after_example=exemplar["after_example"],
-        ))
+        matches.append(exemplar)
 
     return matches
 
 
 # ---- Agent 4: Rewrite Agent ----
 
-def rewrite_agent(flags: list[Flag], exemplars: list[ExemplarMatch]) -> list[RewriteSuggestion]:
+def rewrite_agent(
+    flags: list[Flag], exemplars: list[ExemplarMatch], *, deadline: float | None = None
+) -> list[RewriteSuggestion]:
     """
     Rewrites ONLY the flagged sentences, using the matched exemplar as a
     grounding reference so the output sounds like real coaching rather than
@@ -328,8 +485,33 @@ def rewrite_agent(flags: list[Flag], exemplars: list[ExemplarMatch]) -> list[Rew
     {json.dumps([e.model_dump() for e in exemplars])}
     """
 
-    result = call_claude_json(system_prompt, user_message, max_tokens=REWRITE_MAX_TOKENS)
+    result = call_claude_json(
+        system_prompt, user_message, max_tokens=REWRITE_MAX_TOKENS, expect=list, deadline=deadline
+    )
+    for r in result:
+        if not isinstance(r, dict):
+            raise PipelineError(f"Rewrite agent returned a {type(r).__name__} in its list, expected an object.")
+
     try:
-        return [RewriteSuggestion(**r) for r in result]
-    except ValidationError as e:
-        raise PipelineError(f"Claude's rewrite response didn't match the expected shape: {e}") from e
+        rewrites = [RewriteSuggestion(**r) for r in result]
+    except (ValidationError, TypeError) as e:
+        logger.error("Rewrite response didn't match RewriteSuggestion: %s", e)
+        raise PipelineError("The feedback service returned unexpected rewrites. Try again.") from e
+
+    # The frontend pairs rewrites to flags on flag_id and renders nothing when
+    # the lookup misses, so a hallucinated id degrades to a silently missing
+    # rewrite. Not worth failing the whole request over - the flag itself is
+    # still useful - but it must not vanish without a trace.
+    known_ids = {flag.id for flag in flags}
+    unmatched = [r.flag_id for r in rewrites if r.flag_id not in known_ids]
+    if unmatched:
+        logger.warning(
+            "Rewrite agent returned flag_ids that match no flag: %s (known ids: %s)",
+            unmatched,
+            sorted(known_ids),
+        )
+    missing = sorted(known_ids - {r.flag_id for r in rewrites})
+    if missing:
+        logger.warning("No rewrite returned for flags: %s", missing)
+
+    return rewrites

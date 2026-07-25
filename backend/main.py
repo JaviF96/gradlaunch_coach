@@ -20,7 +20,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from schemas import FinalReport
-from agents import context_agent, diagnostic_agent, exemplar_agent, rewrite_agent, PipelineError
+from agents import (
+    context_agent,
+    diagnostic_agent,
+    exemplar_agent,
+    rewrite_agent,
+    new_deadline,
+    PipelineError,
+)
 
 app = FastAPI()
 
@@ -51,11 +58,30 @@ def get_client_ip(request: Request) -> str:
     forwarded_for = request.headers.get("x-forwarded-for")
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
+    # request.client is None for some transports (and in some test clients).
+    # Fall back to a shared bucket rather than crashing - an unidentifiable
+    # caller should still be rate limited, just not individually.
+    if request.client is None:
+        return "unknown"
     return request.client.host
+
+
+def _evict_stale_ips(now: float) -> None:
+    # _request_log is a defaultdict that only ever grew: every IP that ever
+    # called kept an empty deque forever. Sweep the fully-expired ones so a
+    # long-running instance doesn't leak an entry per unique caller.
+    stale = [
+        ip
+        for ip, log in _request_log.items()
+        if not log or now - log[-1] > RATE_LIMIT_WINDOW_SECONDS
+    ]
+    for ip in stale:
+        del _request_log[ip]
 
 
 def check_rate_limit(client_ip: str) -> None:
     now = time.monotonic()
+    _evict_stale_ips(now)
     log = _request_log[client_ip]
     while log and now - log[0] > RATE_LIMIT_WINDOW_SECONDS:
         log.popleft()
@@ -80,13 +106,17 @@ class AnalyzeRequest(BaseModel):
 @app.post("/analyze", response_model=FinalReport)
 def analyze(request: Request, body: AnalyzeRequest) -> FinalReport:
     check_rate_limit(get_client_ip(request))
+    # One budget shared by all three Claude calls, so a slow early stage eats
+    # into the later ones rather than extending the total. Without it the
+    # stages only bound themselves individually and can still add up.
+    deadline = new_deadline()
     try:
-        brief = context_agent(body.job_description, body.question)
-        diagnostic = diagnostic_agent(brief, body.draft_answer)
+        brief = context_agent(body.job_description, body.question, deadline=deadline)
+        diagnostic = diagnostic_agent(brief, body.draft_answer, deadline=deadline)
         exemplars = exemplar_agent(diagnostic.flags)
-        rewrites = rewrite_agent(diagnostic.flags, exemplars)
+        rewrites = rewrite_agent(diagnostic.flags, exemplars, deadline=deadline)
     except PipelineError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
     return FinalReport(
         context=brief,

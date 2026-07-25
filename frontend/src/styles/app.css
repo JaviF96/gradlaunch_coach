@@ -374,8 +374,6 @@ body {
 
 /* --- Summary slide --- */
 
-.summary-role { font-weight: 600; }
-
 .summary-needs-label {
   display: block;
   margin-top: var(--gl-space-4);
