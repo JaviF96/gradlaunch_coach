@@ -26,7 +26,7 @@ client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 EXEMPLARS_PATH = Path(__file__).parent / "exemplars.json"
 
-MODEL_NAME = "claude-haiku-4-5"
+MODEL_NAME = "claude-sonnet-5"
 
 # Per-stage output caps. context_agent's output is a handful of short
 # strings; diagnostic_agent/rewrite_agent return lists that grow with the
@@ -64,7 +64,15 @@ def call_claude_json(system_prompt: str, user_message: str, *, max_tokens: int, 
     if not response.content:
         raise PipelineError(f"Claude returned no content (stop_reason={response.stop_reason!r})")
 
-    raw_text = response.content[0].text.strip()
+    # Read only text blocks. Models with thinking on (e.g. Sonnet) put a
+    # ThinkingBlock first, so response.content[0] isn't guaranteed to be text -
+    # blindly reading .text off it raises AttributeError. Join all text blocks
+    # in case the model splits its output across more than one.
+    text_blocks = [block.text for block in response.content if getattr(block, "type", None) == "text"]
+    if not text_blocks:
+        raise PipelineError(f"Claude returned no text block (stop_reason={response.stop_reason!r})")
+
+    raw_text = "".join(text_blocks).strip()
 
     if raw_text.startswith("```"):
         raw_text = raw_text.split("\n", 1)[1]
