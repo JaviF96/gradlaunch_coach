@@ -45,7 +45,7 @@ def main():
     print(exemplars)
 
     print("\nTesting rewrite_agent...")
-    rewrites = rewrite_agent(diagnostic.flags, exemplars, SAMPLE_JOB_DESCRIPTION)
+    rewrites = rewrite_agent(diagnostic.flags, exemplars, SAMPLE_JOB_DESCRIPTION, SAMPLE_DRAFT_ANSWER)
     print(rewrites)
 
 

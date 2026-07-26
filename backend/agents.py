@@ -295,7 +295,12 @@ def diagnostic_agent(
 
     - star_structure: does the answer describe a situation, action, and a
       result, and does the result include a real number or concrete outcome?
-      Flag if the result is vague or missing entirely.
+      Before flagging a missing or vague result, check whether a nearby
+      sentence - even the very next one - already supplies some form of
+      outcome or takeaway. If the result is still genuinely absent or too
+      vague, quote through to that sentence rather than just the action
+      alone, so the fix can build on what's already there instead of
+      ignoring or duplicating it.
     - specificity: does the answer name real tools, technologies, numbers, or
       outcomes, or does it lean on vague phrases like "AI tools" or "improved
       efficiency" without saying how much or which ones?
@@ -319,6 +324,17 @@ def diagnostic_agent(
     For each issue you find, quote the EXACT sentence or phrase from the draft
     answer that triggered the flag, word for word, so it can be located and
     highlighted later. Do not paraphrase the quoted text.
+
+    quoted_text must be one or more COMPLETE sentences - never a fragment that
+    only makes grammatical sense attached to the sentence before or after it.
+    In particular, never quote just the portion of a sentence that follows a
+    colon or semicolon as if it stood alone; quote the whole sentence.
+
+    If the same underlying issue repeats across more than one sentence (e.g. a
+    templated "Firstly / Secondly / Thirdly" list), quoted_text must span
+    EVERY affected sentence, from the first instance through the last, as ONE
+    flag - not just the first occurrence - so a single rewrite can fix the
+    whole pattern at once.
 
     Respond with ONLY valid JSON, no markdown fences, no preamble, no
     commentary before or after. Match this exact shape:
@@ -468,6 +484,7 @@ def rewrite_agent(
     flags: list[Flag],
     exemplars: list[ExemplarMatch],
     job_description: str,
+    draft_answer: str,
     *,
     deadline: float | None = None,
 ) -> list[RewriteSuggestion]:
@@ -475,6 +492,10 @@ def rewrite_agent(
     Rewrites ONLY the flagged sentences, using the matched exemplar as a
     grounding reference so the output sounds like real coaching rather than
     generic AI polish.
+
+    draft_answer is passed for context only, so a rewrite can be checked
+    against the sentences immediately around it - the model still rewrites
+    only the flagged quoted_text, nothing else in the draft.
     """
     system_prompt = """
     You are the final stage in an application-coaching pipeline. You have been
@@ -539,6 +560,22 @@ def rewrite_agent(
     phrase should come back roughly the same size, not meaningfully expanded,
     except where an [[ADD: ...]] marker itself accounts for the extra length.
 
+    You have also been given the student's full original draft answer, for
+    context only. Before writing each rewrite, find the flag's original_text
+    inside it and read the sentence(s) immediately before and after. Your
+    rewritten_text must work as a literal drop-in replacement: if it were
+    substituted for original_text at that exact spot, the result must still
+    read as one grammatically correct, coherent passage with whatever comes
+    immediately before and after it. In particular, if original_text depends
+    grammatically on what precedes it (for example, it is the back half of a
+    sentence introduced by a colon, or one item in a list), the rewrite must
+    still fit that same grammatical role - do not turn a dependent clause or
+    list item into a disconnected, freestanding sentence.
+
+    Use the surrounding draft only to judge whether your rewrite fits - never
+    as material to pull into the rewrite, and never rewrite or reference any
+    part of the draft outside the flag's own original_text.
+
     Each rewrite must also carry the flag_id of the flag it addresses.
 
     Respond with ONLY valid JSON, no markdown fences, no preamble, no
@@ -558,6 +595,10 @@ def rewrite_agent(
     user_message = f"""
     Job description:
     {job_description}
+
+    Student's full draft answer (context only - rewrite ONLY the flagged
+    text below, nothing else in this draft):
+    {draft_answer}
 
     Flags:
     {json.dumps([f.model_dump() if hasattr(f, "model_dump") else f for f in flags])}
