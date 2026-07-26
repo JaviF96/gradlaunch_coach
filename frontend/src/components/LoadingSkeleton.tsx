@@ -2,7 +2,7 @@ export function LoadingSkeleton() {
   return (
     <div role="status">
       <p className="gl-label loading-note">
-        Analysing — usually 10 to 20 seconds
+        Analysing — usually 30 to 40 seconds
       </p>
       <div className="gl-skeleton" aria-hidden="true">
         <div className="gl-skeleton-line gl-skeleton-line--tag" />

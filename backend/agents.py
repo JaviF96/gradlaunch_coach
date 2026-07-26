@@ -30,9 +30,9 @@ MODEL_NAME = "claude-sonnet-5"
 # Per-stage output caps. context_agent's output is a handful of short
 # strings; diagnostic_agent/rewrite_agent return lists that grow with the
 # number of flags, so they get more headroom to avoid silent truncation.
-CONTEXT_MAX_TOKENS = 1000
-DIAGNOSTIC_MAX_TOKENS = 2000
-REWRITE_MAX_TOKENS = 2000
+CONTEXT_MAX_TOKENS = 2000
+DIAGNOSTIC_MAX_TOKENS = 4000
+REWRITE_MAX_TOKENS = 4000
 
 # Timeouts. The SDK defaults to a 600s read timeout and 2 internal retries,
 # so one hung call could tie up a request for 30 minutes behind a spinner
@@ -318,6 +318,14 @@ def diagnostic_agent(
       common in AI-written or template cover letters (e.g. rigid three-part
       sentences, hollow enthusiasm with no substance behind it)?
 
+    Check across all five dimensions as one set before finalizing, not each in
+    isolation. If two candidate flags would quote the same or overlapping text
+    and point at essentially the same underlying gap - even if one calls it a
+    missing outcome and another calls it missing detail - keep only ONE: the
+    dimension and reason that name the actual problem most precisely. Never
+    flag the same piece of text twice for what is really one issue described
+    two ways.
+
     For each issue you find, quote the EXACT sentence or phrase from the draft
     answer that triggered the flag, word for word, so it can be located and
     highlighted later. Do not paraphrase the quoted text.
@@ -351,16 +359,25 @@ def diagnostic_agent(
         system_prompt, user_message, max_tokens=DIAGNOSTIC_MAX_TOKENS, expect=dict, deadline=deadline
     )
 
-    # The id is assigned here rather than asked for in the prompt, so the
-    # frontend can pair rewrites to flags without trusting the model to invent
-    # unique ids. That means writing into each entry, which requires each entry
-    # to actually be a dict.
     flags = result.get("flags", [])
     if not isinstance(flags, list):
         raise PipelineError(f"Diagnostic agent returned 'flags' as {type(flags).__name__}, expected a list.")
-    for i, flag in enumerate(flags):
+    for flag in flags:
         if not isinstance(flag, dict):
             raise PipelineError(f"Diagnostic agent returned a {type(flag).__name__} in 'flags', expected an object.")
+
+    # Backstop for the prompt instruction above: even when the model doesn't
+    # catch it, two flags whose quoted_text overlaps by full containment are
+    # the same underlying gap counted twice. Drop the contained one - the
+    # containing flag's rewrite already spans that exact text - and reassign
+    # into result so DiagnosticReport(**result) sees the deduped list too.
+    flags = _dedupe_overlapping_flags(flags)
+    result["flags"] = flags
+
+    # The id is assigned here rather than asked for in the prompt, so the
+    # frontend can pair rewrites to flags without trusting the model to invent
+    # unique ids.
+    for i, flag in enumerate(flags):
         flag["id"] = f"flag-{i}"
 
     try:
@@ -368,6 +385,34 @@ def diagnostic_agent(
     except (ValidationError, TypeError) as e:
         logger.error("Diagnostic response didn't match DiagnosticReport: %s", e)
         raise PipelineError("The feedback service returned unexpected flags. Try again.") from e
+
+
+def _dedupe_overlapping_flags(flags: list[dict]) -> list[dict]:
+    """
+    Drops flags whose quoted_text is fully contained in another flag's
+    quoted_text - the same underlying gap flagged twice, whether under the
+    same dimension or two different ones. Keeps the containing flag: its
+    rewrite already spans the smaller flag's target text, so nothing is lost.
+
+    Processes longest quoted_text first so containment is checked against
+    spans already confirmed to survive, then filters the original list to
+    preserve input order. Equal-length duplicate quotes are handled the same
+    way: the first one processed is kept, the second is dropped (a string
+    contains an identical string).
+    """
+    texts = [f.get("quoted_text", "") for f in flags]
+    order = sorted(range(len(flags)), key=lambda i: -len(texts[i]))
+    kept_texts: list[str] = []
+    dropped: set[int] = set()
+    for i in order:
+        text = texts[i]
+        if not text:
+            continue
+        if any(text in kept for kept in kept_texts):
+            dropped.add(i)
+            continue
+        kept_texts.append(text)
+    return [f for i, f in enumerate(flags) if i not in dropped]
 
 
 # ---- Agent 3: Exemplar Agent ----
@@ -430,7 +475,11 @@ def exemplar_agent(flags: list[Flag]) -> list[ExemplarMatch]:
 # ---- Agent 4: Rewrite Agent ----
 
 def rewrite_agent(
-    flags: list[Flag], exemplars: list[ExemplarMatch], *, deadline: float | None = None
+    flags: list[Flag],
+    exemplars: list[ExemplarMatch],
+    job_description: str,
+    *,
+    deadline: float | None = None,
 ) -> list[RewriteSuggestion]:
     """
     Rewrites ONLY the flagged sentences, using the matched exemplar as a
@@ -439,9 +488,9 @@ def rewrite_agent(
     """
     system_prompt = """
     You are the final stage in an application-coaching pipeline. You have been
-    given a list of flagged issues from a student's draft answer, and for each
-    flag, a matched exemplar showing a real before/after fix for that same kind
-    of issue.
+    given a list of flagged issues from a student's draft answer, a matched
+    exemplar for each flag showing a real before/after fix for that same kind
+    of issue, and the job description the student is applying against.
 
     Your job is to rewrite ONLY the flagged text, one rewrite per flag. Do not
     rewrite the whole answer, and do not touch any part of the draft that
@@ -461,7 +510,46 @@ def rewrite_agent(
     If a flag has no matched exemplar, still write a rewrite, just rely on the
     flag's own dimension and reason to guide the fix instead.
 
-    Each rewrite must also carry the flag_id of the flag it addresses. 
+    NEVER FABRICATE. Do not invent outcomes, metrics, numbers, rankings, tool
+    names, or any other specific detail that is not either (a) already present
+    somewhere in the flag's original_text, or (b) literally present in the job
+    description below. This holds even when the matched exemplar's after_example
+    contains a specific number or fact - the exemplar is illustrating STYLE
+    only, its literal figures are never real and must never be copied or
+    imitated with a different invented figure.
+
+    This applies with extra force to anything about the employer: if a flag
+    calls for more specificity about the company, its products, deals, or
+    scale, you may only reference details that appear verbatim or near-verbatim
+    in the job description text. Do not state a fact about the employer from
+    your own general knowledge, even if you believe it to be true - it may be
+    outdated, wrong, or unverifiable, and the student would repeat it as fact
+    in a real application.
+
+    If a fix genuinely needs information you don't have - a real outcome the
+    student achieved, a specific company detail not present in the job
+    description - do not guess or invent a plausible-sounding stand-in. Insert
+    an explicit marker instead, in exactly this format: [[ADD: instruction]].
+    The instruction inside must be specific and actionable, telling the student
+    exactly what kind of thing to go find or supply, e.g.:
+      - "...that ended up [[ADD: how it placed - a ranking out of X teams, or
+        how many people used it]]"
+      - "[[ADD: a specific Morgan Stanley business line, platform, or deal
+        you've actually researched - not a guessed figure]]"
+    Never write a generic, non-actionable marker like [[ADD: more detail]] or
+    [[ADD: a result]].
+
+    Insert the marker only in place of the specific missing piece. Keep every
+    other word around it exactly as the student wrote it - do not restructure
+    or pad the rest of the sentence to compensate, and do not add a marker for
+    something the original_text or job description already supplies.
+
+    Keep each rewrite as close as possible to the original_text's length.
+    These are answers to word-limited application questions, so a flagged
+    phrase should come back roughly the same size, not meaningfully expanded,
+    except where an [[ADD: ...]] marker itself accounts for the extra length.
+
+    Each rewrite must also carry the flag_id of the flag it addresses.
 
     Respond with ONLY valid JSON, no markdown fences, no preamble, no
     commentary before or after. Match this exact shape, a JSON array with one
@@ -478,6 +566,9 @@ def rewrite_agent(
     """
 
     user_message = f"""
+    Job description:
+    {job_description}
+
     Flags:
     {json.dumps([f.model_dump() if hasattr(f, "model_dump") else f for f in flags])}
 

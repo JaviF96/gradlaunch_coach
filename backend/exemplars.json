@@ -4,12 +4,12 @@
     {
       "dimension": "star_structure",
       "before_example": "I worked on a project analysing customer churn data for a small startup during my second year.",
-      "after_example": "I built a churn prediction model for a startup during my second year, which flagged at-risk customers two weeks earlier than their existing process and helped the team cut churn by 12% over one quarter."
+      "after_example": "I analysed customer churn data for a startup during my second year, work that [[ADD: the concrete result you saw - e.g. how much it reduced churn, or how the team ended up using it]]."
     },
     {
       "dimension": "specificity",
       "before_example": "I used AI tools to improve efficiency in our team project.",
-      "after_example": "I used the Claude API to automate our data cleaning step, cutting the time we spent preparing datasets from around 3 hours to 20 minutes per week."
+      "after_example": "I used [[ADD: the specific AI tool you used]] to automate [[ADD: the specific task it handled]], cutting the time that took from [[ADD: real before/after time or effort saved]]."
     },
     {
       "dimension": "voice_authenticity",

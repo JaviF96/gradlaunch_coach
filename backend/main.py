@@ -114,7 +114,7 @@ def analyze(request: Request, body: AnalyzeRequest) -> FinalReport:
         brief = context_agent(body.job_description, body.question, deadline=deadline)
         diagnostic = diagnostic_agent(brief, body.draft_answer, deadline=deadline)
         exemplars = exemplar_agent(diagnostic.flags)
-        rewrites = rewrite_agent(diagnostic.flags, exemplars, deadline=deadline)
+        rewrites = rewrite_agent(diagnostic.flags, exemplars, body.job_description, deadline=deadline)
     except PipelineError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 
