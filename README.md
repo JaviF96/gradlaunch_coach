@@ -54,18 +54,24 @@ to port 5500 so it matches the backend's default CORS allowlist.
 
 ## Deployment
 
-TODO once you're ready:
+Live at:
+- Frontend: https://gradlaunch-coach-feedback.onrender.com
+- Backend: https://gradlaunch-coach.onrender.com
+
+Two separate Render services:
 - Backend: Render web service, root directory `backend/`, start command
   `uvicorn main:app --host 0.0.0.0 --port $PORT`
 - Frontend: Render static site, root directory `frontend/`, build command
   `npm install && npm run build`, publish directory `frontend/dist`
-- Set `ANTHROPIC_API_KEY` as an environment variable in the Render dashboard,
-  not in code
-- Set `VITE_BACKEND_URL` to the deployed backend URL when building the
-  frontend (it defaults to http://localhost:8000 for local dev)
-- Set `ALLOWED_ORIGINS` (comma-separated) to your deployed frontend URL —
-  `backend/main.py` already reads it, and defaults to
-  `http://localhost:5500` if unset
+- `ANTHROPIC_API_KEY` is set as an environment variable on the backend
+  service in the Render dashboard, not in code
+- `VITE_BACKEND_URL` is set to the backend's URL above, on the frontend
+  service in the Render dashboard. This is a **build-time** Vite variable —
+  changing it requires a manual redeploy of the frontend, editing local
+  `.env` does nothing for the deployed site
+- `ALLOWED_ORIGINS` is set to the frontend's URL above, on the backend
+  service in the Render dashboard — `backend/main.py` reads it and defaults
+  to `http://localhost:5500` if unset (local dev only)
 
 ## Build log
 
@@ -139,6 +145,19 @@ Things worth recording:
   underlying issue twice under two different dimension names; fixed by
   detecting overlapping flagged text and discarding the less specific
   duplicate.
+
+- **2026-07-26 — First deploy, and a same-origin bug.** Deployed the backend
+  as a Render web service and the frontend as a Render static site. First
+  live test failed instantly with a JSON parse error in the browser instead
+  of a real response. Network tab showed why: a 200 with `Content-Length: 0`
+  in 65ms, and the request URL was the frontend's own domain, not the
+  backend's — `VITE_BACKEND_URL` had been pointed at the frontend site
+  itself, so `/analyze` was hitting Render's static-site edge, not FastAPI,
+  which is also why the backend's own logs never showed the request at all.
+  Fixed by pointing `VITE_BACKEND_URL` at the actual backend URL and
+  rebuilding — worth remembering that Vite bakes this in at build time, so
+  editing `.env` alone (local or via Render dashboard) does nothing without
+  a redeploy.
 
 ## Eval notes
 
