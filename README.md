@@ -63,8 +63,9 @@ TODO once you're ready:
   not in code
 - Set `VITE_BACKEND_URL` to the deployed backend URL when building the
   frontend (it defaults to http://localhost:8000 for local dev)
-- Update `allow_origins` in `backend/main.py` to your deployed frontend URL
-  instead of `"*"`
+- Set `ALLOWED_ORIGINS` (comma-separated) to your deployed frontend URL —
+  `backend/main.py` already reads it, and defaults to
+  `http://localhost:5500` if unset
 
 ## Build log
 
@@ -81,7 +82,63 @@ Things worth recording:
 
 ### Entries
 
-- [date] — TODO
+- **2026-07-14 — Initial pipeline.** Got the four-agent pipeline (context →
+  diagnostic → exemplar → rewrite) working end to end, with a plain
+  HTML/CSS/JS frontend. Left the system prompts as deliberate TODOs at
+  first — the rubric itself is the actual IP here, worth designing
+  carefully rather than scaffolding on autopilot.
+
+- **2026-07-22 — Rate-limit fix, carousel, panel layout.** Ran an audit of
+  the codebase and found the rate limiter was keying off
+  `request.client.host`, which behind a reverse proxy (e.g. Render) is the
+  proxy's own IP for every request — that would have collapsed every user
+  into a single shared limit. Fixed it before it could bite anyone, even
+  though it wasn't affecting real users yet: cheaper to fix a correctness
+  bug on paper than after it's live. Separately, reworked the report view
+  from a single flat list that kept growing with every flag into a
+  carousel with a left/right split panel layout — a meaningful UX
+  improvement once a draft had more than two or three issues to review.
+
+- **2026-07-23 — Rebuilt the frontend on React.** Rewrote the frontend from
+  vanilla JS/CSS to Vite + React + TypeScript. This was a deliberate bet
+  on a framework to raise the ceiling on how polished the UI could look
+  and how maintainable it would stay as more components (carousel, flag
+  cards, rewrite blocks) got added.
+
+- **2026-07-25 — Flag IDs, a model switch, and hardening error handling.**
+  Realized the diagnostic-to-rewrite pairing was fragile: flags and
+  rewrites were being matched by comparing text, so if the model
+  paraphrased the rewritten text even slightly, the match would fail
+  silently and the rewrite would just vanish from the UI with no error.
+  Set myself the task of fixing this properly by having the backend
+  assign a stable `flag.id` and threading it through as `flag_id`, so
+  pairing no longer depends on the model reproducing text exactly.
+  Separately, after comparing output quality, tried switching the model
+  from Haiku to Sonnet — which immediately broke JSON parsing, since
+  Sonnet returns a thinking block ahead of its text response and Haiku
+  doesn't; the code was blindly reading the first content block as text.
+  Fixed by filtering to text-type blocks only. A second audit that day
+  turned up a bigger risk: the Anthropic SDK's default timeouts and
+  retries meant a single hung call could tie up a request for a very long
+  time behind a spinner promising 10–20 seconds. Closed that off with
+  explicit per-call and per-pipeline timeout budgets, and took the
+  opportunity to distinguish failure types (timeout vs. API error vs.
+  malformed response) so each one surfaces a clear, specific message
+  instead of a generic failure.
+
+- **2026-07-26 — Fixed hallucinated rewrites and overlapping flags.**
+  Spent this session focused purely on output quality: put several runs
+  side by side and compared what the rewrite agent was actually
+  producing. Found it was stating things as fact — outcomes, numbers,
+  results — that sounded ideal but that the student had never actually
+  confirmed, which is a serious problem for a tool giving application
+  advice. Fixed it by having the model insert explicit `[[ADD: ...]]`
+  placeholders wherever a rewrite needed a real detail it didn't have,
+  instead of inventing one, paired with an explicit instruction never to
+  fabricate. Also noticed the diagnostic agent could flag the same
+  underlying issue twice under two different dimension names; fixed by
+  detecting overlapping flagged text and discarding the less specific
+  duplicate.
 
 ## Eval notes
 

@@ -127,7 +127,6 @@ def analyze(request: Request, body: AnalyzeRequest) -> FinalReport:
 
 @app.get("/health")
 def health():
-    # TODO: useful for checking the deployed backend is actually up
     return {"status": "ok"}
 
 

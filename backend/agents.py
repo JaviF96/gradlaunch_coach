@@ -280,18 +280,8 @@ def diagnostic_agent(
     """
     Scores the draft answer against Lorna's rubric dimensions, using the
     brief from the context agent to make the scoring specific rather than
-    generic.
-
-    TODO: this is where the actual rubric lives. Write the system prompt
-    to check for, at minimum, the dimensions:
-    - STAR structure / outcome with a number attached
-    - specificity (real tools/figures vs vague phrases)
-    - voice authenticity (too polished/corporate for the person's stage)
-    - trajectory signal (direction over finished portfolio)
-    - generic cover-letter tells
-
-    Tell it to return ONLY JSON matching DiagnosticReport: a list of flags,
-    each with dimension, quoted_text (exact phrase from the draft), and reason.
+    generic. The rubric itself lives in the system prompt below: star_structure,
+    specificity, voice_authenticity, trajectory_signal, generic_phrasing.
     """
     system_prompt = """
     You are the diagnostic stage in an application-coaching pipeline. You have
