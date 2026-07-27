@@ -192,20 +192,6 @@ body {
   transform: none;
 }
 
-.gl-btn-secondary {
-  font-family: var(--gl-font-body);
-  font-size: var(--gl-size-small);
-  font-weight: 500;
-  color: var(--gl-ink);
-  background: transparent;
-  border: 1px solid var(--gl-hairline);
-  border-radius: var(--gl-radius-field);   /* not a pill */
-  padding: var(--gl-space-3) var(--gl-space-4);
-  cursor: pointer;
-  transition: border-color var(--gl-transition);
-}
-.gl-btn-secondary:hover { border-color: var(--gl-ink-muted); }
-
 /* Small quiet action inside a rewrite block. */
 .gl-btn-copy {
   font-family: var(--gl-font-mono);

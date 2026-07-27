@@ -46,7 +46,7 @@ class Flag(BaseModel):
     # plain-language explanation of why this is a problem, written the
     # way Lorna would explain it to a student, not a generic AI explanation
 
-    id: str 
+    id: str
     # unique identifier for this flag, so the frontend can track it across
 
 

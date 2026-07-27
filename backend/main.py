@@ -130,9 +130,3 @@ def analyze(request: Request, body: AnalyzeRequest) -> FinalReport:
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-# TODO (week 2+): a second endpoint like POST /explain that takes a single
-# flag and lets a student ask "why was this flagged?" conversationally.
-# Keep it separate from /analyze, this is the optional chat layer on top
-# of the core report, not a replacement for it.

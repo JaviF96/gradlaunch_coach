@@ -75,9 +75,6 @@ Two separate Render services:
 
 ## Build log
 
-TODO: keep this updated as you go. This is the part that turns into your
-interview answers later, so treat it as worth the five minutes each time.
-
 Things worth recording:
 - decisions you made and why (e.g. "why four separate agents instead of
   one prompt")
@@ -159,8 +156,29 @@ Things worth recording:
   editing `.env` alone (local or via Render dashboard) does nothing without
   a redeploy.
 
-## Eval notes
+- **2026-07-26 — Rewrites losing context after real testing.** Ran a handful
+  of real questions through the live deployment and started seeing rewrites
+  that didn't actually make sense in place — a rewritten clause substituted
+  back into the draft would read as a disconnected, ungrammatical fragment.
+  Root cause: the rewrite agent was only ever given the flagged `quoted_text`
+  in isolation, never the sentences around it, so it had no way to know
+  whether that text was, say, the back half of a sentence introduced by a
+  colon. Fixed by passing the full `draft_answer` into `rewrite_agent` for
+  context and adding an explicit instruction to treat `rewritten_text` as a
+  literal drop-in replacement — check the sentence immediately before and
+  after the flag, and keep a dependent clause or list item fitted to that
+  same grammatical role instead of turning it into a standalone sentence.
+  While investigating, also tightened the diagnostic agent's quoting rules:
+  `quoted_text` now has to be one or more complete sentences, never a
+  fragment that only parses attached to a neighbor, and a repeated pattern
+  (e.g. a templated "Firstly / Secondly / Thirdly" list) gets flagged as one
+  span covering every instance instead of just the first.
 
-TODO: once you have 5-6 real drafts with known "correct" coach verdicts,
-track here how the diagnostic agent's flags compare. This is what turns
-"I built an AI tool" into "I built an AI tool and measured whether it works."
+- **2026-07-27 — Cleanup pass before calling this done.** Went through the
+  whole codebase looking for stale comments, dead code, and anything that
+  wouldn't hold up in a public repo. Removed a dead `.gl-btn-secondary` CSS
+  rule that no component referenced, a stray trailing whitespace in
+  `schemas.py`, and the deferred `/explain` TODO in `main.py`. Also stopped
+  tracking `.claude/settings.local.json` (local tool permission grants, not
+  meant to be shared) and added it to `.gitignore`.
+
