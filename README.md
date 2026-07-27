@@ -73,15 +73,7 @@ Two separate Render services:
   service in the Render dashboard — `backend/main.py` reads it and defaults
   to `http://localhost:5500` if unset (local dev only)
 
-## Build log
-
-Things worth recording:
-- decisions you made and why (e.g. "why four separate agents instead of
-  one prompt")
-- things that didn't work and what you changed
-- what real users said, and what you changed because of it
-- eval results once you have a test set (which drafts did the diagnostic
-  agent get right vs wrong, compared to what a real coach would flag)
+## Build log:
 
 ### Entries
 
