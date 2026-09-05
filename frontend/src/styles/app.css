@@ -60,19 +60,10 @@ body {
   gap: var(--gl-space-3);
 }
 
-.gl-mark {
-  width: 20px;
-  height: 20px;
-  fill: var(--gl-orange);
+.gl-logo {
+  height: 50.4px;
+  width: auto;
   flex-shrink: 0;
-}
-
-.gl-wordmark {
-  font-family: var(--gl-font-mono);
-  font-size: var(--gl-size-label);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--gl-chrome-ink);
 }
 
 .gl-chrome-rule {
