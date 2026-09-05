@@ -198,6 +198,14 @@ def call_claude_json(
         logger.error("Response was not valid JSON after retry: %s", raw_text)
         raise PipelineError("The feedback service returned a malformed response. Try again.") from e
 
+    # A bare array was asked for, but the model wrapped it in a single-key
+    # object like {"rewrites": [...]}. Unwrap rather than fail - this is a
+    # common model quirk, not a real shape mismatch.
+    if expect is list and isinstance(parsed, dict) and len(parsed) == 1:
+        (only_value,) = parsed.values()
+        if isinstance(only_value, list):
+            parsed = only_value
+
     # No retry here: the JSON parsed fine, the model just chose a different
     # shape. A second identical call is unlikely to change that and costs real
     # money, so fail loudly instead.
