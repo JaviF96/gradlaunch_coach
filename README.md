@@ -1,4 +1,4 @@
-# GradLaunch application coach
+# GradLaunch application coach - [Try it out](https://coach.grad-launch.co.uk)
 
 An agent pipeline that gives structured feedback on a draft application
 answer, checked against a real coaching rubric rather than generic AI polish.
